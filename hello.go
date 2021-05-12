@@ -2,61 +2,42 @@ package main
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"fmt"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/wang12d/Go-Crowdsourcing-DApp/src/crowdsourcing/lib"
+	"github.com/wang12d/Go-Crowdsourcing-DApp/src/crowdsourcing/utils/ethereum"
+	"github.com/wang12d/Go-Crowdsourcing-DApp/src/crowdsourcing/utils/smartcontract/crowdsourcing"
 	"log"
 	"math/big"
-	"nju.edu/cosec/crowdsourcing/src/crowdsourcing"
 	"time"
 )
 
 const (
 	localURL = "http://localhost:7545"
-	gasLimit = uint64(6721975)
-	requester = "87a4bff39275278638b6f20e8295e7339230b10537f55e0a85a3e034d5a62659"
-	workerA = "f4ca3ef5eb10ddcd50f748e9cc4552732e2cf958ef578306ddc6fe42ed5974f8"
-	workerB = "2953ffbd499d269eab5e1029b8c3c7392397ba515ab8949a04902c3c4ebf6839"
+	requester = "ebc9bfe431c9408f463613c281c9ff9bf475925c7b7dcee6778ca9320d62f072"
+	workerA = "0d39d481bf81aa4d52bfb41c4f4e26716036f0aecd9a534353ae543875263782"
+	workerB = "a117d32ed4a19a8e14694975d5ebd887f6d4f40f69177b1117590466842c0295"
 )
 
 func main() {
 	var err error
 	client, err := ethclient.Dial(localURL)
 	if err != nil {
-		fmt.Println(fmt.Errorf("clinet dial error: %v", err))
+		log.Fatalf(fmt.Sprintf("clinet dial error: %v", err))
 	}
-	gasPrice, _ := client.SuggestGasPrice(context.Background())
 	chainID, err := client.ChainID(context.Background())
+	if err != nil {
+		log.Fatal("Binding error: ", err)
+	}
 	// Initialize worker and requester transactor bind
-	requesterPrivateKey, requesterAddress := privateKeyAndAddress(requester)
-	workerAPrivateKey, workerAAddress := privateKeyAndAddress(workerA)
-	workerBPrivateKey, workerBAddress := privateKeyAndAddress(workerB)
-	nonce := getNonce(context.Background(), client, requesterAddress)
-	requesterAuth, err := bind.NewKeyedTransactorWithChainID(requesterPrivateKey, chainID)
-	if err != nil {
-		log.Fatal("Binding error: ", err)
-	}
-	workerAAuth, err := bind.NewKeyedTransactorWithChainID(workerAPrivateKey, chainID)
-	if err != nil {
-		log.Fatal("Binding error: ", err)
-	}
-	workerBAuth, err := bind.NewKeyedTransactorWithChainID(workerBPrivateKey, chainID)
-	if err != nil {
-		log.Fatal("Binding error: ", err)
-	}
-	requesterAuth.Value = big.NewInt(0)
-	requesterAuth.Nonce = big.NewInt(int64(nonce))
-	requesterAuth.GasLimit = gasLimit
-	requesterAuth.GasPrice = gasPrice
-	workerAAuth.GasPrice, workerBAuth.GasPrice = gasPrice, gasPrice
-	workerAAuth.GasLimit, workerBAuth.GasLimit = gasLimit, gasLimit
-	workerAAuth.Value, workerBAuth.Value = big.NewInt(0), big.NewInt(0)
+	requesterPrivateKey, requesterAddress := ethereum.PrivateKeyAndAddress(requester)
+	workerAPrivateKey, workerAAddress := ethereum.PrivateKeyAndAddress(workerA)
+	workerBPrivateKey, workerBAddress := ethereum.PrivateKeyAndAddress(workerB)
+	requesterAuth := ethereum.KeyedTransactor(client, requesterPrivateKey,
+		requesterAddress, chainID, big.NewInt(0))
+
 	// Contract is deployed by requester
-	contractAddress, _, instance, err := crowdsourcing.DeployCrowdsourcing(requesterAuth, client)
+	contractAddress, _, instance, err := lib.DeployCrowdsourcing(requesterAuth, client)
 	if err != nil {
 		log.Fatal("Contract deployment error:", err)
 	}
@@ -69,102 +50,49 @@ func main() {
 	workerCollateral.SetString("4000000000000000000", 10)
 	// Creating a transaction to deposit to the smart contract
 	start := time.Now()
-	if err = depositCollateral(client, requesterPrivateKey, requesterAddress, contractAddress, collateral, []byte{0x01}); err != nil {
+	if err = crowdsourcing.DepositCollateral(client, requesterPrivateKey, requesterAddress, contractAddress, collateral, []byte{0x01}); err != nil {
 		log.Fatal("Collateral deposition error: ", err)
 	}
-	if err = depositCollateral(client, workerAPrivateKey, workerAAddress, contractAddress, workerCollateral, []byte{0x00}); err != nil {
+	if err = crowdsourcing.DepositCollateral(client, workerAPrivateKey, workerAAddress, contractAddress, workerCollateral, []byte{0x00}); err != nil {
 		log.Fatal("Collateral deposition error: ", err)
 	}
-	if err = depositCollateral(client, workerBPrivateKey, workerBAddress, contractAddress, workerCollateral, []byte{0x00}); err != nil {
+	if err = crowdsourcing.DepositCollateral(client, workerBPrivateKey, workerBAddress, contractAddress, workerCollateral, []byte{0x00}); err != nil {
 		log.Fatal("Collateral deposition error: ", err)
 	}
 	// Requester publishes the transaction
-	nonce = getNonce(context.Background(), client, requesterAddress)
-	requesterAuth.Nonce = big.NewInt(int64(nonce))
+	ethereum.UpdateNonce(client, requesterAuth, requesterAddress)
 	_, err = instance.PublishCrowdsourcingTask(requesterAuth, collateral, numberOfWorkers, "Simple image annotation tasks")
 	if err != nil {
 		log.Fatal("Task publish failed:", err)
 	}
 	fmt.Println("Task published, time cost:", time.Since(start))
-	workerAAuth.Nonce = big.NewInt(int64(getNonce(context.Background(), client, workerAAddress)))
+	workerAAuth := ethereum.KeyedTransactor(client, workerAPrivateKey,
+		workerAAddress, chainID, big.NewInt(0))
 	if  _, err = instance.JoinCrowdsourcingTask(workerAAuth, requesterAddress); err != nil {
 		log.Fatal("worker A joining the task error: ", err)
 	}
-	workerBAuth.Nonce = big.NewInt(int64(getNonce(context.Background(), client, workerBAddress)))
+	workerBAuth := ethereum.KeyedTransactor(client, workerBPrivateKey,
+		workerBAddress, chainID, big.NewInt(0))
 	if _, err = instance.JoinCrowdsourcingTask(workerBAuth, requesterAddress); err != nil {
 		log.Fatal("worker B joining the task error: ", err)
 	}
 	fmt.Println("A and B have joined the task.")
-	workerAAuth.Nonce = big.NewInt(int64(getNonce(context.Background(), client, workerAAddress)))
+	ethereum.UpdateNonce(client, workerAAuth, workerAAddress)
 	if _, err = instance.SubmitData(workerAAuth, workerAAddress, []byte{0x00}); err != nil {
 		log.Fatal("A submits data failed: ", err)
 	}
-	workerBAuth.Nonce = big.NewInt(int64(getNonce(context.Background(), client, workerBAddress)))
+	ethereum.UpdateNonce(client, workerBAuth, workerBAddress)
 	if _, err = instance.SubmitData(workerBAuth, workerBAddress, []byte{0x01}); err != nil {
 		log.Fatal("A submits data failed: ", err)
 	}
 	fmt.Println("Data have been submitted.")
-	requesterAuth.Nonce = big.NewInt(int64(getNonce(context.Background(), client, requesterAddress)))
+	ethereum.UpdateNonce(client, requesterAuth, requesterAddress)
 	if _, err = instance.Rewarding(requesterAuth, workerAAddress, true); err != nil {
 		log.Fatal("Rewarding A failed: ", err)
 	}
-	requesterAuth.Nonce = big.NewInt(int64(getNonce(context.Background(), client, requesterAddress)))
+	ethereum.UpdateNonce(client, requesterAuth, requesterAddress)
 	if _, err = instance.Rewarding(requesterAuth, workerBAddress, false); err != nil {
 		log.Fatal("Rewarding B failed: ", err)
 	}
 	fmt.Println("Rewarding over.")
-}
-
-// getNonce return the pending nonce of the account, which is the nonce of next transaction
-func getNonce(ctx context.Context, client *ethclient.Client, account common.Address) uint64 {
-	nonce, err := client.PendingNonceAt(ctx, account)
-	if err != nil {
-		panic(fmt.Errorf("get nonce error: %v", err))
-	}
-	return nonce
-}
-
-// newSignedTransaction create a signed transaction using the client with private key
-func newSignedTransaction(client * ethclient.Client, privateKey *ecdsa.PrivateKey, from, to common.Address, value *big.Int, data []byte) (*types.Transaction, error) {
-	gasPrice, err := client.SuggestGasPrice(context.Background())
-	if err != nil {
-		return nil, err
-	}
-	depositTx := types.LegacyTx{
-		Nonce:    getNonce(context.Background(), client, from),
-		GasPrice: gasPrice,
-		Gas:      gasLimit,
-		To:       &to,
-		Value:	  value,
-		Data:     data,
-		V:        nil,
-		R:        nil,
-		S:        nil,
-	}
-	tx := types.NewTx(&depositTx)
-	return types.SignTx(tx, types.HomesteadSigner{}, privateKey)
-}
-
-// depositCollateral deposits the amount of deposits into smart contract
-func depositCollateral(client *ethclient.Client, privateKey *ecdsa.PrivateKey, userAddress, contractAddress common.Address, value *big.Int, data []byte) error {
-	signedTx, err := newSignedTransaction(client, privateKey, userAddress, contractAddress, value, data)
-	if err != nil {
-		return err
-	}
-	return client.SendTransaction(context.Background(), signedTx)
-}
-
-// privateKeyAndAddress generates private key from the address from the given hex private key string
-func privateKeyAndAddress(hexPrivateKey string) (*ecdsa.PrivateKey, common.Address) {
-	privateKey, err := crypto.HexToECDSA(hexPrivateKey)
-	if err != nil {
-		log.Fatal("Key construction failed", err)
-	}
-	publicKey := privateKey.Public()
-	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
-	if !ok {
-		log.Fatal("Convert to public key failed:", publicKeyECDSA)
-	}
-	address := crypto.PubkeyToAddress(*publicKeyECDSA)
-	return privateKey, address
 }
