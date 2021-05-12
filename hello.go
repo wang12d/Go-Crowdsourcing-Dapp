@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/wang12d/Go-Crowdsourcing-DApp/src/crowdsourcing/lib"
+	"github.com/wang12d/Go-Crowdsourcing-DApp/src/crowdsourcing/utils/ethereum"
+	"github.com/wang12d/Go-Crowdsourcing-DApp/src/crowdsourcing/utils/smartcontract/crowdsourcing"
 	"log"
 	"math/big"
-	"nju.edu/cosec/crowdsourcing/src/crowdsourcing/lib"
-	"nju.edu/cosec/crowdsourcing/src/crowdsourcing/utils/ethereum"
-	"nju.edu/cosec/crowdsourcing/src/crowdsourcing/utils/smartcontract/crowdsourcing"
 	"time"
 )
 

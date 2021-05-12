@@ -1,4 +1,4 @@
-module nju.edu/cosec/crowdsourcing
+module github.com/wang12d/Go-Crowdsourcing-DApp
 
 go 1.16
 
