@@ -15,11 +15,11 @@ func KeyedTransactor(client *ethclient.Client, key *ecdsa.PrivateKey, address co
 	auth, err := bind.NewKeyedTransactorWithChainID(
 		key, id)
 	if err != nil {
-		log.Fatalf("keyed transactor construction failed.")
+		log.Fatalf("keyed transactor construction failed, %v", err)
 	}
 	var price *big.Int
 	if price, err = client.SuggestGasPrice(context.Background()); err != nil {
-		log.Fatalf("get suggest gas price failed.")
+		log.Fatalf("get suggest gas price failed, %v", err)
 	}
 	auth.Nonce = big.NewInt(int64(GetNonce(context.Background(), client, address)))
 	auth.GasLimit = gasLimit

@@ -14,28 +14,27 @@ import (
 
 const (
 	localURL = "http://localhost:7545"
-	requester = "7a1dcac34e4717acc4a21742c80c20b64104846332bfecee9377bf5d5a3c2b49"
-	workerA = "ad41c4a8f5e3370787d8d62c651c898942cfa4427296142a1fbfd5da2c6ccbc4"
-	workerB = "d252b9f840bd7c8da0ee30e5461f397fcea69ae5c5be4a0dced040e8addb5f34"
+	requester = "ebc9bfe431c9408f463613c281c9ff9bf475925c7b7dcee6778ca9320d62f072"
+	workerA = "0d39d481bf81aa4d52bfb41c4f4e26716036f0aecd9a534353ae543875263782"
+	workerB = "a117d32ed4a19a8e14694975d5ebd887f6d4f40f69177b1117590466842c0295"
 )
 
 func main() {
 	var err error
 	client, err := ethclient.Dial(localURL)
 	if err != nil {
-		fmt.Println(fmt.Errorf("clinet dial error: %v", err))
+		log.Fatalf(fmt.Sprintf("clinet dial error: %v", err))
 	}
 	chainID, err := client.ChainID(context.Background())
+	if err != nil {
+		log.Fatal("Binding error: ", err)
+	}
 	// Initialize worker and requester transactor bind
 	requesterPrivateKey, requesterAddress := ethereum.PrivateKeyAndAddress(requester)
 	workerAPrivateKey, workerAAddress := ethereum.PrivateKeyAndAddress(workerA)
 	workerBPrivateKey, workerBAddress := ethereum.PrivateKeyAndAddress(workerB)
-	// requesterAuth, err := bind.NewKeyedTransactorWithChainID(requesterPrivateKey, chainID)
 	requesterAuth := ethereum.KeyedTransactor(client, requesterPrivateKey,
 		requesterAddress, chainID, big.NewInt(0))
-	if err != nil {
-		log.Fatal("Binding error: ", err)
-	}
 
 	// Contract is deployed by requester
 	contractAddress, _, instance, err := lib.DeployCrowdsourcing(requesterAuth, client)

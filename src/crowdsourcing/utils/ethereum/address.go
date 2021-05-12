@@ -16,7 +16,7 @@ func PrivateKeyAndAddress(hexPrivateKey string) (*ecdsa.PrivateKey, common.Addre
 	publicKey := privateKey.Public()
 	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
 	if !ok {
-		log.Fatal("Convert to public key failed:", publicKeyECDSA)
+		log.Fatalf("Convert to public key failed: %v", publicKeyECDSA)
 	}
 	address := crypto.PubkeyToAddress(*publicKeyECDSA)
 	return privateKey, address
