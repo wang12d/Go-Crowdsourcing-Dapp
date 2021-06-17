@@ -3,20 +3,21 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/wang12d/Go-Crowdsourcing-DApp/src/crowdsourcing/lib"
-	"github.com/wang12d/Go-Crowdsourcing-DApp/src/crowdsourcing/utils/ethereum"
-	"github.com/wang12d/Go-Crowdsourcing-DApp/src/crowdsourcing/utils/smartcontract/crowdsourcing"
 	"log"
 	"math/big"
 	"time"
+
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/lib"
+	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/ethereum"
+	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/smartcontract/crowdsourcing"
 )
 
 const (
-	localURL = "http://localhost:7545"
+	localURL  = "http://localhost:7545"
 	requester = "ebc9bfe431c9408f463613c281c9ff9bf475925c7b7dcee6778ca9320d62f072"
-	workerA = "0d39d481bf81aa4d52bfb41c4f4e26716036f0aecd9a534353ae543875263782"
-	workerB = "a117d32ed4a19a8e14694975d5ebd887f6d4f40f69177b1117590466842c0295"
+	workerA   = "0d39d481bf81aa4d52bfb41c4f4e26716036f0aecd9a534353ae543875263782"
+	workerB   = "a117d32ed4a19a8e14694975d5ebd887f6d4f40f69177b1117590466842c0295"
 )
 
 func main() {
@@ -68,7 +69,7 @@ func main() {
 	fmt.Println("Task published, time cost:", time.Since(start))
 	workerAAuth := ethereum.KeyedTransactor(client, workerAPrivateKey,
 		workerAAddress, chainID, big.NewInt(0))
-	if  _, err = instance.JoinCrowdsourcingTask(workerAAuth, requesterAddress); err != nil {
+	if _, err = instance.JoinCrowdsourcingTask(workerAAuth, requesterAddress); err != nil {
 		log.Fatal("worker A joining the task error: ", err)
 	}
 	workerBAuth := ethereum.KeyedTransactor(client, workerBPrivateKey,
