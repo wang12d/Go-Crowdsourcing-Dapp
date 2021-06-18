@@ -2,7 +2,6 @@ package plantform
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -68,6 +67,13 @@ func init() {
 
 }
 
-func (cp *plantform) RegisterWorker() {
-	fmt.Printf("private key %v", cp.privateKeys[cp.keyIndex])
+// NewAccount generates a private key to Ethereum account which is used for digital signature
+// authentication
+func (cp *plantform) NewAccount() (address string) {
+	if cp.keyIndex >= numberOfAccount {
+		log.Fatalf("Plantform has reached the account limit\n")
+	}
+	privateKey := cp.privateKeys[cp.keyIndex]
+	cp.keyIndex++
+	return privateKey
 }
