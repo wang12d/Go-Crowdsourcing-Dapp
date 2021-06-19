@@ -72,8 +72,8 @@ func init() {
 
 }
 
-// NewAccount generates a private key to Ethereum account which is used for digital signature
-// authentication
+// NewAccount generates a private key to Ethereum account
+// which is used for digital signature authentication
 func (cp *plantform) NewAccount() (address string) {
 	// The address must be token one by one
 	var privateKey string
@@ -88,4 +88,10 @@ func (cp *plantform) NewAccount() (address string) {
 	fmt.Println("Index: ", cp.keyIndex)
 	cp.keyIndex++
 	return privateKey
+}
+
+// ReceiveTask receive task from requesters
+// Only resigstered requester can post task
+func (cp *plantform) ReceiveTask(postedTask task.Task) {
+	cp.tasks = append(cp.tasks, postedTask)
 }
