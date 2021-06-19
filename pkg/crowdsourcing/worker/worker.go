@@ -85,6 +85,7 @@ func (w *Worker) PublicKey() ecdsa.PublicKey {
 	return *w.publicKey
 }
 
+// S returns the current state of worker
 func (w *Worker) S() State {
 	return w.state
 }
