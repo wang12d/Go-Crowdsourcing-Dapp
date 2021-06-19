@@ -11,6 +11,9 @@ var (
 
 type Key []byte
 
+// The Evaluation function
+type EvalFunc func([]byte) float64
+
 type Task struct {
 	workerRequired   int
 	remainingWorkers int
@@ -19,13 +22,14 @@ type Task struct {
 	encKey           Key // The key used to encrypted the uploaded data in crowdsourcing
 	description      string
 	id               string
+	eval             EvalFunc
 }
 
 func init() {
 	idLock <- struct{}{}
 }
 
-func NewTask(workerRequired, reward int, encKey Key, description string) *Task {
+func NewTask(workerRequired, reward int, encKey Key, description string, eval EvalFunc) *Task {
 	<-idLock
 	currentID := id
 	id++
@@ -38,6 +42,7 @@ func NewTask(workerRequired, reward int, encKey Key, description string) *Task {
 		description:      description,
 		workerLock:       make(chan struct{}, 1),
 		id:               strconv.Itoa(currentID),
+		eval:             eval,
 	}
 	// Get the worker lock of current worker
 	newTask.workerLock <- struct{}{}
@@ -84,6 +89,10 @@ func (t *Task) Participanting() bool {
 // Description returns the description of the task
 func (t *Task) Description() string {
 	return t.description
+}
+
+func (t *Task) Eval() EvalFunc {
+	return t.eval
 }
 
 // ID returns the unique id the crowdsourcing task

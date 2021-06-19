@@ -89,3 +89,7 @@ func (w *Worker) PublicKey() ecdsa.PublicKey {
 func (w *Worker) S() State {
 	return w.state
 }
+
+func (w *Worker) ID() int {
+	return w.id
+}
