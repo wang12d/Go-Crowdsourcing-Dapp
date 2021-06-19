@@ -2,7 +2,6 @@ package plantform
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -13,12 +12,14 @@ import (
 )
 
 type plantform struct {
-	workers     int           // The number of workers in the Plantform
-	requesters  int           // The number of requesters in the Plantform
-	keyIndex    int           // Key index used to get the private key
-	tasks       []task.Task   // Tasks available in the Plantform
-	privateKeys []string      // All of private keys
-	lock        chan struct{} // The multithread lock of update index of plantform
+	workers     int                 // The number of workers in the Plantform
+	requesters  int                 // The number of requesters in the Plantform
+	keyIndex    int                 // Key index used to get the private key
+	tasks       []*task.Task        // Tasks available in the Plantform
+	privateKeys []string            // All of private keys
+	addressLock chan struct{}       // The multithread lock of update index of plantform
+	taskLock    chan struct{}       // The multithread lock for handler posted task cocurrently
+	totalData   map[string][][]byte // The data needed by each task, their id as key
 }
 
 const (
@@ -34,16 +35,19 @@ var (
 func init() {
 	once.Do(func() {
 		CP = &plantform{
-			lock:        make(chan struct{}, 1),
+			addressLock: make(chan struct{}, 1),
+			taskLock:    make(chan struct{}, 1),
 			keyIndex:    0,
 			workers:     0,
 			requesters:  0,
-			tasks:       make([]task.Task, 0),
+			tasks:       make([]*task.Task, 0),
 			privateKeys: make([]string, numberOfAccount),
+			totalData:   make(map[string][][]byte),
 		}
 	})
 	// Get the mutex lock
-	CP.lock <- struct{}{}
+	CP.addressLock <- struct{}{}
+	CP.taskLock <- struct{}{}
 	// Parser accounts file
 	pwd, _ := os.Getwd()
 	accountFile := filepath.Join(pwd, "pkg", "crowdsourcing", "plantform", "accounts.json")
@@ -74,24 +78,44 @@ func init() {
 
 // NewAccount generates a private key to Ethereum account
 // which is used for digital signature authentication
-func (cp *plantform) NewAccount() (address string) {
+func (cp *plantform) NewAccount() string {
 	// The address must be token one by one
 	var privateKey string
-	<-cp.lock
+	<-cp.addressLock
 	defer func() {
-		cp.lock <- struct{}{}
+		cp.addressLock <- struct{}{}
 	}()
 	if cp.keyIndex >= numberOfAccount {
 		return NULL
 	}
 	privateKey = cp.privateKeys[cp.keyIndex]
-	fmt.Println("Index: ", cp.keyIndex)
 	cp.keyIndex++
 	return privateKey
 }
 
 // ReceiveTask receive task from requesters
 // Only resigstered requester can post task
-func (cp *plantform) ReceiveTask(postedTask task.Task) {
+func (cp *plantform) ReceiveTask(postedTask *task.Task) {
+	<-cp.taskLock
 	cp.tasks = append(cp.tasks, postedTask)
+	cp.totalData[postedTask.ID()] = make([][]byte, postedTask.WorkerRequired())
+	defer func() {
+		cp.taskLock <- struct{}{}
+	}()
+}
+
+// TaskList return the current task posted by requesters to the plantform
+func (cp *plantform) TaskList() []*task.Task {
+	return cp.tasks
+}
+
+// SubmitTaskData store the data of the particular task
+func (cp *plantform) SubmitTaskData(t *task.Task, data []byte, workerID int) {
+	cp.totalData[t.ID()][workerID] = data
+}
+
+// CheckData return the data of the task
+// WARNING: This function is only used for debugging
+func (cp *plantform) CheckData(t *task.Task) [][]byte {
+	return cp.totalData[t.ID()]
 }
