@@ -1,4 +1,4 @@
-package crowdsourcing
+package smartcontract
 
 import (
 	"context"
