@@ -73,7 +73,7 @@ func (w *Worker) ParticipantTask() {
 			plantform.CP.ParticipantCrowdsourcingTask(w.opts, w.address, t.Address())
 			w.id = int(t.RemainingWorkers().Int64()) - 1
 			w.task = t
-			t.Participanting()
+			t.Participanting(w.address)
 			t.TaskRelease()
 			w.state = WORKING
 			return
@@ -104,9 +104,8 @@ func (w *Worker) PublicKey() ecdsa.PublicKey {
 	return *w.publicKey
 }
 
-// S returns the current state of worker
-func (w *Worker) S() State {
-	return w.state
+func (w *Worker) Address() common.Address {
+	return w.address
 }
 
 func (w *Worker) ID() int {

@@ -2,6 +2,7 @@ package requester
 
 import (
 	"crypto/ecdsa"
+	"fmt"
 	"log"
 	"math/big"
 
@@ -99,7 +100,13 @@ func (r *Requester) Rewarding() []bool {
 	rewardList := make([]bool, r.task.WorkerRequired().Int64())
 	for i, data := range plantform.CP.CheckData(r.task) {
 		evalReuslt := r.task.Eval()(data)
-		rewardList[i] = r.isRewardable(evalReuslt)
+		isok := r.isRewardable(evalReuslt)
+		rewardList[i] = isok
+		fmt.Println(r.task.WorkerAddresses()[i])
+		if _, err := plantform.CP.Instance().Rewarding(r.opts, r.task.WorkerAddresses()[i], isok); err != nil {
+			log.Fatalf("Rewarding error: %v\n", err)
+		}
+		ethereum.UpdateNonce(plantform.CP.Client(), r.opts, r.address)
 	}
 	return rewardList
 }
