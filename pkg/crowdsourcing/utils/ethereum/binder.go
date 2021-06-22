@@ -3,13 +3,15 @@ package ethereum
 import (
 	"context"
 	"crypto/ecdsa"
+	"log"
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"log"
-	"math/big"
 )
 
+// KeyedTransactor create the transactor which is used to make transaction of the specific key
 func KeyedTransactor(client *ethclient.Client, key *ecdsa.PrivateKey, address common.Address,
 	id, value *big.Int) *bind.TransactOpts {
 	auth, err := bind.NewKeyedTransactorWithChainID(
@@ -28,6 +30,7 @@ func KeyedTransactor(client *ethclient.Client, key *ecdsa.PrivateKey, address co
 	return auth
 }
 
+// UpdateNonce update according to current state
 func UpdateNonce(client *ethclient.Client, auth *bind.TransactOpts, address common.Address) {
 	auth.Nonce = big.NewInt(int64(GetNonce(context.Background(), client, address)))
 }

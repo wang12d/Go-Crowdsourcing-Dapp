@@ -1,12 +1,13 @@
-package crowdsourcing
+package smartcontract
 
 import (
 	"context"
 	"crypto/ecdsa"
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"math/big"
-	"github.com/wang12d/Go-Crowdsourcing-DApp/src/crowdsourcing/utils/ethereum"
+	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/ethereum"
 )
 
 // DepositCollateral deposits the amount of deposits into smart contract

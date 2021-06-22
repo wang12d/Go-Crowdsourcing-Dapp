@@ -3,20 +3,21 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/wang12d/Go-Crowdsourcing-DApp/src/crowdsourcing/lib"
-	"github.com/wang12d/Go-Crowdsourcing-DApp/src/crowdsourcing/utils/ethereum"
-	"github.com/wang12d/Go-Crowdsourcing-DApp/src/crowdsourcing/utils/smartcontract/crowdsourcing"
 	"log"
 	"math/big"
 	"time"
+
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing"
+	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/ethereum"
+	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/smartcontract"
 )
 
 const (
-	localURL = "http://localhost:7545"
-	requester = "ebc9bfe431c9408f463613c281c9ff9bf475925c7b7dcee6778ca9320d62f072"
-	workerA = "0d39d481bf81aa4d52bfb41c4f4e26716036f0aecd9a534353ae543875263782"
-	workerB = "a117d32ed4a19a8e14694975d5ebd887f6d4f40f69177b1117590466842c0295"
+	localURL  = "http://localhost:8545"
+	requester = "97e0ba71d9ba8a41bf31c74b80484d58aa400ef2084a5ae15174d2394ccb3124"
+	workerA   = "ef75b6f88870c312a7ae94c75472e43a2f13d1703e41811089cfd1aa67f8b5cd"
+	workerB   = "b556fa3cf0b2629beda1ef1e6c1f484587079ea862cb3b39f34394811a635f56"
 )
 
 func main() {
@@ -37,7 +38,7 @@ func main() {
 		requesterAddress, chainID, big.NewInt(0))
 
 	// Contract is deployed by requester
-	contractAddress, _, instance, err := lib.DeployCrowdsourcing(requesterAuth, client)
+	contractAddress, _, instance, err := crowdsourcing.DeployCrowdsourcing(requesterAuth, client)
 	if err != nil {
 		log.Fatal("Contract deployment error:", err)
 	}
@@ -50,13 +51,13 @@ func main() {
 	workerCollateral.SetString("4000000000000000000", 10)
 	// Creating a transaction to deposit to the smart contract
 	start := time.Now()
-	if err = crowdsourcing.DepositCollateral(client, requesterPrivateKey, requesterAddress, contractAddress, collateral, []byte{0x01}); err != nil {
+	if err = smartcontract.DepositCollateral(client, requesterPrivateKey, requesterAddress, contractAddress, collateral, []byte{0x01}); err != nil {
 		log.Fatal("Collateral deposition error: ", err)
 	}
-	if err = crowdsourcing.DepositCollateral(client, workerAPrivateKey, workerAAddress, contractAddress, workerCollateral, []byte{0x00}); err != nil {
+	if err = smartcontract.DepositCollateral(client, workerAPrivateKey, workerAAddress, contractAddress, workerCollateral, []byte{0x00}); err != nil {
 		log.Fatal("Collateral deposition error: ", err)
 	}
-	if err = crowdsourcing.DepositCollateral(client, workerBPrivateKey, workerBAddress, contractAddress, workerCollateral, []byte{0x00}); err != nil {
+	if err = smartcontract.DepositCollateral(client, workerBPrivateKey, workerBAddress, contractAddress, workerCollateral, []byte{0x00}); err != nil {
 		log.Fatal("Collateral deposition error: ", err)
 	}
 	// Requester publishes the transaction
@@ -68,7 +69,7 @@ func main() {
 	fmt.Println("Task published, time cost:", time.Since(start))
 	workerAAuth := ethereum.KeyedTransactor(client, workerAPrivateKey,
 		workerAAddress, chainID, big.NewInt(0))
-	if  _, err = instance.JoinCrowdsourcingTask(workerAAuth, requesterAddress); err != nil {
+	if _, err = instance.JoinCrowdsourcingTask(workerAAuth, requesterAddress); err != nil {
 		log.Fatal("worker A joining the task error: ", err)
 	}
 	workerBAuth := ethereum.KeyedTransactor(client, workerBPrivateKey,
