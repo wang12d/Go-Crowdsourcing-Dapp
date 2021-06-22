@@ -28,6 +28,7 @@ type Task struct {
 	eval             EvalFunc
 	address          common.Address
 	collaterals      *big.Int
+	workerAddresses  []common.Address
 }
 
 func init() {
@@ -54,6 +55,7 @@ func NewTask(workerRequired, reward *big.Int, encKey Key, address common.Address
 		eval:             eval,
 		collaterals:      collaterals,
 		address:          address,
+		workerAddresses:  make([]common.Address, workerRequired.Int64()),
 	}
 	// Get the worker lock of current worker
 	newTask.workerLock <- struct{}{}
@@ -99,11 +101,17 @@ func (t *Task) Address() common.Address {
 	return t.address
 }
 
+// WorkerAddresses returns the total addresses of workers who pariticipants the task
+func (t *Task) WorkerAddresses() []common.Address {
+	return t.workerAddresses
+}
+
 // Participanting indicates whether the participanting of task success
-func (t *Task) Participanting() bool {
-	if t.remainingWorkers.Cmp(big.NewInt(0)) < 0 {
+func (t *Task) Participanting(workerAddress common.Address) bool {
+	if t.remainingWorkers.Cmp(big.NewInt(0)) <= 0 {
 		return false
 	}
+	t.workerAddresses[t.remainingWorkers.Int64()-1] = workerAddress
 	t.remainingWorkers.Sub(t.remainingWorkers, big.NewInt(1))
 	return true
 }

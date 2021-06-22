@@ -53,7 +53,7 @@ func main() {
 	data := make([][]byte, numberOfWorkers)
 	for i := 0; i < numberOfWorkers; i++ {
 		numeric := rand.Float64() * 1000.0
-		fmt.Printf("%v %v\n", workers[i].ID(), numeric)
+		fmt.Printf("%v %v %v\n", workers[i].ID(), numeric, workers[i].Address())
 		data[i] = encoder.Float64ToBytes(numeric)
 	}
 	for i := 0; i < numberOfWorkers; i++ {
