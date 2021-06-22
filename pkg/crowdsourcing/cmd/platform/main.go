@@ -3,7 +3,7 @@ package main
 import (
 	"sync"
 
-	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/plantform"
+	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/platform"
 )
 
 func main() {
@@ -11,7 +11,7 @@ func main() {
 	for i := 0; i < 70; i++ {
 		x.Add(1)
 		go func() {
-			plantform.CP.NewAccount()
+			platform.CP.NewAccount()
 			defer x.Done()
 		}()
 	}

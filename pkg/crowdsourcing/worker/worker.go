@@ -7,10 +7,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/plantform"
+	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/platform"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/task"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/ethereum"
-	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/smartcontract"
 )
 
 var (
@@ -42,17 +41,17 @@ func NewWorker() *Worker {
 	}
 }
 
-// Register registe the worker into the Crowdsourcing plantform
+// Register register the worker into the Crowdsourcing platform
 func (w *Worker) Register() {
 	if w.state != INIT { // Only worker at INIT can register
 		return
 	}
-	privateKey, address := plantform.CP.NewAccount()
+	privateKey, address := platform.CP.NewAccount()
 	w.privateKey, w.address = privateKey, address
 	w.publicKey = &privateKey.PublicKey
 	w.state = PENDING
-	w.opts = ethereum.KeyedTransactor(plantform.CP.Client(), w.privateKey,
-		w.address, plantform.CP.ChianID(), big.NewInt(0))
+	w.opts = ethereum.KeyedTransactor(platform.CP.Client(), w.privateKey,
+		w.address, platform.CP.ChainID(), big.NewInt(0))
 }
 
 // ParticipantTask decides whether the worker participant the current task
@@ -60,20 +59,20 @@ func (w *Worker) ParticipantTask() {
 	if w.state != PENDING {
 		return
 	}
-	taskList := plantform.CP.TaskList()
+	taskList := platform.CP.TaskList()
 	for _, t := range taskList {
 		t.TaskLock() //
 		if t.RemainingWorkers().Cmp(zero) > 0 {
 			// Worker must deposit the corresponding collaterals before participant task
-			if err := smartcontract.DepositCollateral(plantform.CP.Client(), w.privateKey,
-				w.address, plantform.CP.Address(), t.Collateral(), []byte{0x00}); err != nil {
+			if err := ethereum.DepositCollateral(platform.CP.Client(), w.privateKey,
+				w.address, platform.CP.Address(), t.Collateral(), []byte{0x00}); err != nil {
 				log.Fatalf("Worker deposite collaterals error: %v\n", err)
 			}
-			ethereum.UpdateNonce(plantform.CP.Client(), w.opts, w.address)
-			plantform.CP.ParticipantCrowdsourcingTask(w.opts, w.address, t.Address())
+			ethereum.UpdateNonce(platform.CP.Client(), w.opts, w.address)
+			platform.CP.ParticipantCrowdsourcingTask(w.opts, w.address, t.Address())
 			w.id = int(t.RemainingWorkers().Int64()) - 1
 			w.task = t
-			t.Participanting(w.address)
+			t.Participating(w.address)
 			t.TaskRelease()
 			w.state = WORKING
 			return
@@ -82,7 +81,7 @@ func (w *Worker) ParticipantTask() {
 	}
 }
 
-// CollectData collects data from surrounding enviroment
+// CollectData collects data from surrounding environment
 func (w *Worker) CollectData(data []byte) {
 	if w.state != WORKING {
 		return
@@ -90,12 +89,12 @@ func (w *Worker) CollectData(data []byte) {
 	w.data = data
 }
 
-// SubmitData uploads the collected data to the task it participanted
+// SubmitData uploads the collected data to the task it participated
 func (w *Worker) SubmitData() {
 	if w.state != WORKING {
 		return
 	}
-	plantform.CP.SubmitTaskData(w.opts, w.address, w.task.Address(), w.task, w.data, w.id)
+	platform.CP.SubmitTaskData(w.opts, w.address, w.task.Address(), w.task, w.data, w.id)
 	w.state = FIN
 }
 

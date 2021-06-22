@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20Burnable.sol";
 // 进行：
 //      1. 负责审核Workers参与任务的请求
 //      2. 当Requesters创建任务时，保存Requesters所需要的押金
-contract Crowdsourcing is ERC20Burnable {
+contract Task is ERC20Burnable {
     // 负责保存Workers所提交的押金，每一个地址都保存一定数量的押金
     mapping(address => uint) workerCollaterals;
     // 负责保存Requesters所提交的押金，每一个地址都对应一个Requesters,
@@ -31,7 +31,7 @@ contract Crowdsourcing is ERC20Burnable {
     // 奖励Workers，同时Workers也可以通过监听该信息来判断其
     // 是否收到了相应的奖励
     event TaskPublished(address indexed _task, string description);
-    event Tranfer(address indexed _from, address indexed _to, uint _val);
+    event Transfer(address indexed _from, address indexed _to, uint _val);
     event DataSubmitted(address indexed _from, bytes data);
     /**
      * 为了保证该Smart Contract能够接受来自其他用户的押金
@@ -143,7 +143,7 @@ contract Crowdsourcing is ERC20Burnable {
         workersOfTask[msg.sender][worker] = false;
         workerAwards[worker] = 0;
     }
-    // 辅助函数，用来进行从uint到string的转化，这一步主要是帮助Contracs进行任务的转化
+    // 辅助函数，用来进行从uint到string的转化，这一步主要是帮助Contracts进行任务的转化
     function uintToString(uint v) internal pure returns (string memory str) {
         uint maxlength = 100;
         bytes memory reversed = new bytes(maxlength);
