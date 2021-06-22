@@ -70,10 +70,7 @@ func (w *Worker) ParticipantTask() {
 				log.Fatalf("Worker deposite collaterals error: %v\n", err)
 			}
 			ethereum.UpdateNonce(plantform.CP.Client(), w.opts, w.address)
-			if _, err := plantform.CP.Instance().JoinCrowdsourcingTask(w.opts, t.Address()); err != nil {
-				log.Fatalf("Worker join crowdsourcing task error: %v\n", err)
-			}
-			ethereum.UpdateNonce(plantform.CP.Client(), w.opts, w.address)
+			plantform.CP.ParticipantCrowdsourcingTask(w.opts, w.address, t.Address())
 			w.id = int(t.RemainingWorkers().Int64()) - 1
 			w.task = t
 			t.Participanting()

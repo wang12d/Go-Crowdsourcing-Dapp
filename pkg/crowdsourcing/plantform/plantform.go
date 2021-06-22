@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"math/big"
@@ -166,12 +165,19 @@ func (cp *plantform) TaskList() []*task.Task {
 func (cp *plantform) SubmitTaskData(opts *bind.TransactOpts, srcAddress, dstAddress common.Address,
 	t *task.Task, data []byte, workerID int) {
 	_, err := cp.instance.SubmitData(opts, dstAddress, data)
-	fmt.Println(dstAddress, opts.From)
 	if err != nil {
 		log.Fatalf("Submit task data error: %v\n", err)
 	}
 	ethereum.UpdateNonce(cp.client, opts, srcAddress)
 	cp.totalData[t.ID()][workerID] = data
+}
+
+// ParticipantCrowdsourcingTask makes the worker join the selected task
+func (cp *plantform) ParticipantCrowdsourcingTask(opts *bind.TransactOpts, workerAddress, taskAddress common.Address) {
+	if _, err := cp.Instance().JoinCrowdsourcingTask(opts, taskAddress); err != nil {
+		log.Fatalf("Worker join crowdsourcing task error: %v\n", err)
+	}
+	ethereum.UpdateNonce(cp.Client(), opts, workerAddress)
 }
 
 // CheckData return the data of the task
