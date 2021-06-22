@@ -1,4 +1,4 @@
-package plantform
+package platform
 
 import (
 	"context"
@@ -19,13 +19,13 @@ import (
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/ethereum"
 )
 
-type plantform struct {
+type platform struct {
 	workers     int                 // The number of workers in the Plantform
 	requesters  int                 // The number of requesters in the Plantform
 	keyIndex    int                 // Key index used to get the private key
 	tasks       []*task.Task        // Tasks available in the Plantform
 	privateKeys []string            // All of private keys
-	addressLock chan struct{}       // The multithread lock of update index of plantform
+	addressLock chan struct{}       // The multithread lock of update index of platform
 	taskLock    chan struct{}       // The multithread lock for handler posted task cocurrently
 	totalData   map[string][][]byte // The data needed by each task, their id as key
 	client      *ethclient.Client   // The client of whole ethereum network
@@ -35,26 +35,26 @@ type plantform struct {
 }
 
 const (
-	plantformKeyIndex = 0
+	platformKeyIndex = 0
 	numberOfAccount   = 60
 	NULL              = ""
 	localURL          = "http://localhost:8545"
 )
 
 var (
-	CP            *plantform
-	plantformOnce sync.Once
+	CP           *platform
+	platformOnce sync.Once
 )
 
 func init() {
-	plantformOnce.Do(func() {
+	platformOnce.Do(func() {
 		client, err := ethclient.Dial(localURL)
 		if err != nil {
 			log.Fatalf("Create ethereum client error: %v\n", err)
 		}
 		// Parser accounts file
 		pwd, _ := os.Getwd()
-		accountFile := filepath.Join(pwd, "pkg", "crowdsourcing", "plantform", "accounts.json")
+		accountFile := filepath.Join(pwd, "pkg", "crowdsourcing", "platform", "accounts.json")
 		accountFileHandler, err := os.Open(accountFile)
 		if err != nil {
 			log.Fatalf("Read account file error: %v\n", err)
@@ -80,18 +80,18 @@ func init() {
 			log.Fatalf("Json parser error, cannot get private keys.")
 		}
 
-		// Now deploying the plantform contract with its private key
-		privateKey, address := ethereum.PrivateKeyAndAddress(privateKeys[plantformKeyIndex])
+		// Now deploying the platform contract with its private key
+		privateKey, address := ethereum.PrivateKeyAndAddress(privateKeys[platformKeyIndex])
 		chainID, err := client.ChainID(context.Background())
 		if err != nil {
 			log.Fatalf("Get chain ID error: %v\n", err)
 		}
-		plantformAuth := ethereum.KeyedTransactor(client, privateKey, address, chainID, big.NewInt(0))
-		plantformAddress, _, plantformInstance, err := crowdsourcing.DeployCrowdsourcing(plantformAuth, client)
+		platformAuth := ethereum.KeyedTransactor(client, privateKey, address, chainID, big.NewInt(0))
+		platformAddress, _, platformInstance, err := crowdsourcing.DeployCrowdsourcing(platformAuth, client)
 		if err != nil {
-			log.Fatalf("Deploy plantform error: %v\n", err)
+			log.Fatalf("Deploy platform error: %v\n", err)
 		}
-		CP = &plantform{
+		CP = &platform{
 			addressLock: make(chan struct{}, 1),
 			taskLock:    make(chan struct{}, 1),
 			keyIndex:    1,
@@ -101,8 +101,8 @@ func init() {
 			privateKeys: privateKeys,
 			totalData:   make(map[string][][]byte),
 			client:      client,
-			address:     plantformAddress,
-			instance:    plantformInstance,
+			address:     platformAddress,
+			instance:    platformInstance,
 			chainID:     chainID,
 		}
 		// Get the mutex lock
@@ -112,7 +112,7 @@ func init() {
 }
 
 // NewAccount returns a new private and ethereum address
-func (cp *plantform) NewAccount() (*ecdsa.PrivateKey, common.Address) {
+func (cp *platform) NewAccount() (*ecdsa.PrivateKey, common.Address) {
 	// The address must be taken one by one
 	var privateKey string
 	<-cp.addressLock
@@ -128,23 +128,23 @@ func (cp *plantform) NewAccount() (*ecdsa.PrivateKey, common.Address) {
 }
 
 // Client returns the Ethereum client
-func (cp *plantform) Client() *ethclient.Client {
+func (cp *platform) Client() *ethclient.Client {
 	return cp.client
 }
 
 // Address returns the address of deployed Client
-func (cp *plantform) Address() common.Address {
+func (cp *platform) Address() common.Address {
 	return cp.address
 }
 
 // Instance returns the instance of crowdsourcing contract
-func (cp *plantform) Instance() *crowdsourcing.Crowdsourcing {
+func (cp *platform) Instance() *crowdsourcing.Crowdsourcing {
 	return cp.instance
 }
 
 // ReceiveTask receive task from requesters
 // Only resigstered requester can post task
-func (cp *plantform) ReceiveTask(opts *bind.TransactOpts, address common.Address, postedTask *task.Task) {
+func (cp *platform) ReceiveTask(opts *bind.TransactOpts, address common.Address, postedTask *task.Task) {
 	<-cp.taskLock
 	cp.tasks = append(cp.tasks, postedTask)
 	// Publish the crowdsourcing task to blockchain
@@ -156,13 +156,13 @@ func (cp *plantform) ReceiveTask(opts *bind.TransactOpts, address common.Address
 	}()
 }
 
-// TaskList return the current task posted by requesters to the plantform
-func (cp *plantform) TaskList() []*task.Task {
+// TaskList return the current task posted by requesters to the platform
+func (cp *platform) TaskList() []*task.Task {
 	return cp.tasks
 }
 
 // SubmitTaskData store the data of the particular task
-func (cp *plantform) SubmitTaskData(opts *bind.TransactOpts, srcAddress, dstAddress common.Address,
+func (cp *platform) SubmitTaskData(opts *bind.TransactOpts, srcAddress, dstAddress common.Address,
 	t *task.Task, data []byte, workerID int) {
 	_, err := cp.instance.SubmitData(opts, dstAddress, data)
 	if err != nil {
@@ -173,7 +173,7 @@ func (cp *plantform) SubmitTaskData(opts *bind.TransactOpts, srcAddress, dstAddr
 }
 
 // ParticipantCrowdsourcingTask makes the worker join the selected task
-func (cp *plantform) ParticipantCrowdsourcingTask(opts *bind.TransactOpts, workerAddress, taskAddress common.Address) {
+func (cp *platform) ParticipantCrowdsourcingTask(opts *bind.TransactOpts, workerAddress, taskAddress common.Address) {
 	if _, err := cp.Instance().JoinCrowdsourcingTask(opts, taskAddress); err != nil {
 		log.Fatalf("Worker join crowdsourcing task error: %v\n", err)
 	}
@@ -182,10 +182,10 @@ func (cp *plantform) ParticipantCrowdsourcingTask(opts *bind.TransactOpts, worke
 
 // CheckData return the data of the task
 // WARNING: This function is only used for debugging
-func (cp *plantform) CheckData(t *task.Task) [][]byte {
+func (cp *platform) CheckData(t *task.Task) [][]byte {
 	return cp.totalData[t.ID()]
 }
 
-func (cp *plantform) ChianID() *big.Int {
+func (cp *platform) ChainID() *big.Int {
 	return cp.chainID
 }

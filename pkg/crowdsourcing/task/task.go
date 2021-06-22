@@ -14,7 +14,7 @@ var (
 
 type Key []byte
 
-// The Evaluation function
+// EvalFunc is the Evaluation function
 type EvalFunc func([]byte) float64
 
 type Task struct {
@@ -101,13 +101,13 @@ func (t *Task) Address() common.Address {
 	return t.address
 }
 
-// WorkerAddresses returns the total addresses of workers who pariticipants the task
+// WorkerAddresses returns the total addresses of workers who participants the task
 func (t *Task) WorkerAddresses() []common.Address {
 	return t.workerAddresses
 }
 
-// Participanting indicates whether the participanting of task success
-func (t *Task) Participanting(workerAddress common.Address) bool {
+// Participating indicates whether the participating of task success
+func (t *Task) Participating(workerAddress common.Address) bool {
 	if t.remainingWorkers.Cmp(big.NewInt(0)) <= 0 {
 		return false
 	}
