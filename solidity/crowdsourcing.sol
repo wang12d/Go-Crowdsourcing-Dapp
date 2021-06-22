@@ -96,6 +96,7 @@ contract Crowdsourcing is ERC20Burnable {
         require (remWorkers > 0, "The task no longer needs more worker");
         require (workerCollaterals[worker] >= taskCollaterals[task], "Not enough amount to pay the collaterals");
         workersOfTask[task][worker] = true;
+        dataSubmitted[task][worker] = false;
         workerAwards[worker] += taskCollaterals[task];
         workerCollaterals[worker] -= taskCollaterals[task];
         // 此时任务算是被workers接受了
@@ -111,8 +112,10 @@ contract Crowdsourcing is ERC20Burnable {
         // For each requester, the worker can only upload
         // the encrypted data it collects at most once to avoid
         // a user uses the same address to upload multiple data
-        require(workersOfTask[task][msg.sender] == false, "You already submitted your data");
-        workersOfTask[task][msg.sender] = true;
+        require(workersOfTask[task][msg.sender] == true, "Only registered worker can submit data");
+        require(dataSubmitted[task][msg.sender] == false, "You already submitted your data");
+        dataSubmitted[task][msg.sender] = true;
+        // TODO: Adding quality evaluation
         emit DataSubmitted(task, data); // Requester by subscription to track the process of the current task
     }
     /**
@@ -156,6 +159,7 @@ contract Crowdsourcing is ERC20Burnable {
         }
         str = string(s);
     }
+
     function addString(string memory a, string memory b) internal pure returns (string memory) {
         return string(abi.encodePacked(a, b));
     }
