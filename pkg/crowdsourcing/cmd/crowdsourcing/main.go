@@ -66,5 +66,5 @@ func main() {
 	}
 	lock.Wait()
 	// Verify the uploaded data
-	fmt.Println(r.RewardList())
+	fmt.Println(r.Rewarding())
 }

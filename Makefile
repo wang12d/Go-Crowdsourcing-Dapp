@@ -9,5 +9,6 @@ accounts.json:
 	touch $(shell pwd)/pkg/crowdsourcing/plantform/accounts.json	
 
 clean:
+	pkill node
 	rm -f $(shell pwd)/build/*
 	rm $(shell pwd)/pkg/crowdsourcing/plantform/accounts.json
