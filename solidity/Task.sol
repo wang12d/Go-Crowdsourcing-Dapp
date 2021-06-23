@@ -9,114 +9,101 @@ import "@openzeppelin/contracts/token/ERC20/ERC20Burnable.sol";
 //      1. 负责审核Workers参与任务的请求
 //      2. 当Requesters创建任务时，保存Requesters所需要的押金
 contract Task is ERC20Burnable {
-    // 负责保存Workers所提交的押金，每一个地址都保存一定数量的押金
-    mapping(address => uint) workerCollaterals;
-    // 负责保存Requesters所提交的押金，每一个地址都对应一个Requesters,
-    // 上述Requesters和Workers所有的地址都需要Workers和Requesters
-    // 在每个任务时自动生成
-    mapping(address => uint) requesterCollaterals;
     // 对于一个任务，剩下的Workers数量
-    mapping(address => uint) remainingWorkers;
-    // 对于每个任务所需要的押金
-    mapping(address => uint) taskCollaterals;
+    uint _workerRequired;
     // 计算每个Worker应该获得的奖励
-    mapping(address => uint) workerAwards;
-    // 确保每个任务都有其对应的workers，在进行奖励分发的时候使用
-    mapping(address => mapping(address => bool)) workersOfTask;
-    // 每个worker是否进行了数据上传
-    mapping(address => mapping(address => bool)) dataSubmitted;
-    // 
+    uint _rewards;
+    address[] _workerAddresses;
+    string _description;
+    address _requester;
+    uint _deposition;
+    uint _remainingWorkers;
+    bytes[] _data;
+     
     // 负责在特定条件下用来进行交互的Event，进行交易的触发
     // 假若Requester完成了任务并进行了评估，那么它就会触发一个交易来
     // 奖励Workers，同时Workers也可以通过监听该信息来判断其
     // 是否收到了相应的奖励
-    event TaskPublished(address indexed _task, string description);
-    event Transfer(address indexed _from, address indexed _to, uint _val);
-    event DataSubmitted(address indexed _from, bytes data);
-    /**
-     * 为了保证该Smart Contract能够接受来自其他用户的押金
-     * 需要实现Fallback Function. 
-     * Requester需要将押金从传递到智能合约的地址
-     * 后期为了进行权限控制，需要判断消息发送者是否真的为Requesters
-     * Workers需要将押金从传递到智能合约的地址 
-     * 后期为了进行权限控制，需要判断消息发送者是否真的为Workers
-     */
-    constructor() public ERC20("TaskSubmissionTicket", "TST") {
+    event TaskPublished(uint rewards, address indexed _requester, string _description);
+    event TaskRegistered(address indexed _worker, address indexed _requester, uint _remainingWorkers);
+    event DataSubmitted(address indexed _from, bytes _data);
+
+    /** 为了保证该Smart Contract能够接受来自其他用户的押金
+    * 需要实现Fallback Function. 
+    * Requester需要将押金从传递到智能合约的地址
+    * 后期为了进行权限控制，需要判断消息发送者是否真的为Requesters
+    * Workers需要将押金从传递到智能合约的地址 
+    * 后期为了进行权限控制，需要判断消息发送者是否真的为Workers
+    */
+    constructor(uint workerRequired, uint rewards, string memory description) public ERC20("TaskSubmissionTicket", "TST") {
+        _workerRequired = workerRequired;
+        _rewards = rewards;
+        _description = description;
+        _requester = msg.sender;
+        _remainingWorkers = workerRequired;
+        _deposition = 0;
         _setupDecimals(0);  // 因为我们只需要token来充当凭证，而不是真的数值
     }
-    // 根据Solidity 0.6.2的描述进行修改 https://docs.soliditylang.org/en/v0.6.0/contracts.html#receive-ether-function.
-    fallback() external payable {
-        bytes memory requester = hex"01";
-        bytes memory worker = hex"00";
-        require(keccak256(abi.encodePacked(msg.data)) == keccak256(abi.encodePacked(requester)) || 
-            keccak256(abi.encodePacked(msg.data)) == keccak256(abi.encodePacked(worker)), 
-            "You should either be worker or requester");
-        if (keccak256(abi.encodePacked(msg.data)) == keccak256(abi.encodePacked(requester))) {
-            requesterCollaterals[msg.sender] += msg.value;
-        }
-        else {
-            workerCollaterals[msg.sender] += msg.value;
-        }
+    receive() external payable {
+
     }
-    // 
-    // 创建一个新的众包任务，同时该函数会发出一个新的Event表示任务已经创建成功
-    // Workers可以通过订阅这个Event来接收到最新的Tasks的信息，从而自己决定要不要
-    // 参加该众包任务
-    function PublishCrowdsourcingTask(uint collater, uint workers_needed, string memory description) public {
+    // 根据Solidity 0.6.2的描述进行修改 https://docs.soliditylang.org/en/v0.6.0/contracts.html#receive-ether-function.
+    // 只有requester上传押金到该智能合约
+    fallback() external payable {
+        require(_requester == msg.sender, "Only requester can upload transaction to this contract");
+        _deposition += msg.value;
+    }
+   
+    /** 将该众包任务发布到链上，所有成员都可以选择是否参加该任务
+    *  该过程会触发一个event，链上节点看到该event可以自由选择是
+    *  否参加该任务.     
+    */
+    function publish() public {
         // 对任务的信息进行记录，包括保存任务的押金，记录任务需要的人数
-        address requester = msg.sender;
-        require (requesterCollaterals[requester] >= collater, "Not enough amount to pay the collaterals");
-        uint exceptedRewards = collater / workers_needed;
-        description = addString(description, addString("\nRewards: ", uintToString(exceptedRewards)));
-        // 假若Requester已经提交了押金，那么其在智能合约里面存储的剩余
-        // 押金应该是大于或等于collater的
-        requesterCollaterals[requester] -= collater;
-        // 目前这个状态也是处理对于任务奖励的金额
-        // 但是可能会有一个潜在的BUG，那就是在任务完成之后并没有
-        // 将其内容全部清零
-        taskCollaterals[requester] = exceptedRewards;
-        remainingWorkers[requester] = workers_needed;
+        require (_requester == msg.sender, "Not enough amount to pay the collaterals");
+        require (_rewards * _workerRequired <= _deposition, "The deposition must larger than rewards to workers to pubulish task.");
         // 在requester使用自己的伪名进行任务发布以后，requester能够获得token的分发
         // 并且在workers完成任务的时候才能够获得token作为奖励
-        _mint(requester, workers_needed);   // 在有必要的时候可以将token销毁
-        emit TaskPublished(requester, description);
+        _rewards = _deposition / _workerRequired;   // 如果requester增加其押金
+        _mint(_requester, _workerRequired);         // 在有必要的时候可以将token销毁
+        emit TaskPublished(_rewards, _requester, _description);
     }
     // 给定一个地址，查看其所需要的Workers数量是否已满
-    function RemainingWorkers(address task) public view returns (uint rem) {
-        rem = remainingWorkers[task];
+    function remainingWorkers() public view returns (uint rem) {
+        rem = _remainingWorkers;
     }
-    /** 
-    * Workers参与任务
-    * 用户想要参加某一个众包任务，它需要缴纳一定的押金，一部分是作为激励
-    * 同时也是为了防止用户进行女巫攻击
-    **/
-    function JoinCrowdsourcingTask(address payable task) public {
+    /** Workers在链上看到该任务就可以参与该任务
+    * 但是workers在注册时会被基于一个不记名的token，该token时一个
+    * 参与的凭证
+    */
+    function register() public {
+        require(_remainingWorkers > 0, "The task do not need workers anymore");
         address worker = msg.sender;
-        uint remWorkers = remainingWorkers[task];
-        require (remWorkers > 0, "The task no longer needs more worker");
-        require (workerCollaterals[worker] >= taskCollaterals[task], "Not enough amount to pay the collaterals");
-        workersOfTask[task][worker] = true;
-        dataSubmitted[task][worker] = false;
-        workerAwards[worker] += taskCollaterals[task];
-        workerCollaterals[worker] -= taskCollaterals[task];
+        // require (balanceOf(worker) > 0, "Only worker with token can participant the task");
         // 此时任务算是被workers接受了
-        remainingWorkers[task]--;
+        _remainingWorkers--;
+        // 保存所有用户地址
+        _workerAddresses.push(worker);
+        emit TaskRegistered(worker, _requester, _remainingWorkers);
     }
-    /**
-    * Workers进行任务上传
+
+    /** Workers进行任务上传
     * 它应该上传的是一个加密的数据包，或者当数据直接在区块链上面
     * 进行传递时不划算了，那么则应该上传相应对应数据块的索引，这样
     * 相应Requester就能够找到并对其进行访问
     */
-    function SubmitData(address payable task, bytes memory data) public {
-        // For each requester, the worker can only upload
-        // the encrypted data it collects at most once to avoid
-        // a user uses the same address to upload multiple data
-        require(workersOfTask[task][msg.sender] == true, "Only registered worker can submit data");
-        require(dataSubmitted[task][msg.sender] == false, "You already submitted your data");
-        dataSubmitted[task][msg.sender] = true;
-        // TODO: Adding quality evaluation
-        emit DataSubmitted(task, data); // Requester by subscription to track the process of the current task
+    function SubmitData(bytes memory data) public {
+        // 只有注册了的worker才可以上传数据
+        uint currentWorkers = _workerRequired - _remainingWorkers;
+        bool inWorkers = false;
+        for (uint i = 0; i < currentWorkers; i++) {
+            if (_workerAddresses[i] == msg.sender) {
+                inWorkers = true; break;
+            }
+        }
+        _data.push(data);
+        require(inWorkers, "Only registered worker can submit data");
+        emit DataSubmitted(msg.sender, data); // Requester by subscription to track the process of the current task
     }
     /**
     * 进行任务奖励
@@ -125,23 +112,19 @@ contract Task is ERC20Burnable {
     */
     function Rewarding(address payable worker, bool isok) public {
         // 只有Requester才能调用此信息
-        require(workersOfTask[msg.sender][worker] == true, "Only requester can call this to workers who participants its task and has not been rewarded.");
+        require(msg.sender == _requester, "Only requester can call this to workers who participants its task and has not been rewarded.");
         if (isok) {
-            worker.transfer(workerAwards[worker]+taskCollaterals[msg.sender]);
+            worker.transfer(_rewards);
             // 如果该worker任务完成很好，那么则授予一个token给他进行奖励
             // 于是它下次也可以参与任务
-            transfer(worker, 1);
+            // transfer(worker, 1);
         }
         else {
-            worker.transfer(workerAwards[worker]);  // 退还押金
-            msg.sender.transfer(taskCollaterals[msg.sender]); // 退还押金
+            msg.sender.transfer(_rewards); // 退还押金
             // 该worker并没有诚实的参与任务，需要销毁一个token
-            burn(1);
-            
+            // burn(1);
         }
-        // 奖励已经发出，现在清除其状态
-        workersOfTask[msg.sender][worker] = false;
-        workerAwards[worker] = 0;
+        _deposition -= _rewards;
     }
     // 辅助函数，用来进行从uint到string的转化，这一步主要是帮助Contracts进行任务的转化
     function uintToString(uint v) internal pure returns (string memory str) {

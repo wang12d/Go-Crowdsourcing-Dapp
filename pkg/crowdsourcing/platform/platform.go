@@ -11,11 +11,9 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing"
-	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/task"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/ethereum"
 )
 
@@ -23,10 +21,8 @@ type platform struct {
 	workers     int                 // The number of workers in the Plantform
 	requesters  int                 // The number of requesters in the Plantform
 	keyIndex    int                 // Key index used to get the private key
-	tasks       []*task.Task        // Tasks available in the Plantform
 	privateKeys []string            // All of private keys
 	addressLock chan struct{}       // The multithread lock of update index of platform
-	taskLock    chan struct{}       // The multithread lock for handler posted task cocurrently
 	totalData   map[string][][]byte // The data needed by each task, their id as key
 	client      *ethclient.Client   // The client of whole ethereum network
 	address     common.Address
@@ -36,9 +32,9 @@ type platform struct {
 
 const (
 	platformKeyIndex = 0
-	numberOfAccount   = 60
-	NULL              = ""
-	localURL          = "http://localhost:8545"
+	numberOfAccount  = 60
+	NULL             = ""
+	localURL         = "http://localhost:8545"
 )
 
 var (
@@ -93,11 +89,9 @@ func init() {
 		}
 		CP = &platform{
 			addressLock: make(chan struct{}, 1),
-			taskLock:    make(chan struct{}, 1),
 			keyIndex:    1,
 			workers:     0,
 			requesters:  0,
-			tasks:       make([]*task.Task, 0),
 			privateKeys: privateKeys,
 			totalData:   make(map[string][][]byte),
 			client:      client,
@@ -107,7 +101,6 @@ func init() {
 		}
 		// Get the mutex lock
 		CP.addressLock <- struct{}{}
-		CP.taskLock <- struct{}{}
 	})
 }
 
@@ -140,50 +133,6 @@ func (cp *platform) Address() common.Address {
 // Instance returns the instance of crowdsourcing contract
 func (cp *platform) Instance() *crowdsourcing.Crowdsourcing {
 	return cp.instance
-}
-
-// ReceiveTask receive task from requesters
-// Only resigstered requester can post task
-func (cp *platform) ReceiveTask(opts *bind.TransactOpts, address common.Address, postedTask *task.Task) {
-	<-cp.taskLock
-	cp.tasks = append(cp.tasks, postedTask)
-	// Publish the crowdsourcing task to blockchain
-	cp.instance.PublishCrowdsourcingTask(opts, postedTask.Collateral(), postedTask.WorkerRequired(), postedTask.Description())
-	ethereum.UpdateNonce(cp.client, opts, address)
-	cp.totalData[postedTask.ID()] = make([][]byte, postedTask.WorkerRequired().Int64())
-	defer func() {
-		cp.taskLock <- struct{}{}
-	}()
-}
-
-// TaskList return the current task posted by requesters to the platform
-func (cp *platform) TaskList() []*task.Task {
-	return cp.tasks
-}
-
-// SubmitTaskData store the data of the particular task
-func (cp *platform) SubmitTaskData(opts *bind.TransactOpts, srcAddress, dstAddress common.Address,
-	t *task.Task, data []byte, workerID int) {
-	_, err := cp.instance.SubmitData(opts, dstAddress, data)
-	if err != nil {
-		log.Fatalf("Submit task data error: %v\n", err)
-	}
-	ethereum.UpdateNonce(cp.client, opts, srcAddress)
-	cp.totalData[t.ID()][workerID] = data
-}
-
-// ParticipantCrowdsourcingTask makes the worker join the selected task
-func (cp *platform) ParticipantCrowdsourcingTask(opts *bind.TransactOpts, workerAddress, taskAddress common.Address) {
-	if _, err := cp.Instance().JoinCrowdsourcingTask(opts, taskAddress); err != nil {
-		log.Fatalf("Worker join crowdsourcing task error: %v\n", err)
-	}
-	ethereum.UpdateNonce(cp.Client(), opts, workerAddress)
-}
-
-// CheckData return the data of the task
-// WARNING: This function is only used for debugging
-func (cp *platform) CheckData(t *task.Task) [][]byte {
-	return cp.totalData[t.ID()]
 }
 
 func (cp *platform) ChainID() *big.Int {

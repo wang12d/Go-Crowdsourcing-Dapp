@@ -1,5 +1,6 @@
 go: Task.abi Task.bin accounts.json
-	abigen --bin=$(shell pwd)/build/Task.bin --abi=$(shell pwd)/build/Task.abi --pkg=crowdsourcing -out=$(shell pwd)/pkg/crowdsourcing/taskContract.go
+	mkdir $(shell pwd)/pkg/crowdsourcing/smartcontract/task
+	abigen --bin=$(shell pwd)/build/Task.bin --abi=$(shell pwd)/build/Task.abi --pkg=task -out=$(shell pwd)/pkg/crowdsourcing/smartcontract/task/task.go
 	(ganache-cli -m "enable laugh there club flower source fog attract giraffe trend light rival" -a 60 --account_keys_path=$(shell pwd)/pkg/crowdsourcing/platform/accounts.json &)
 
 Task.abi Task.bin:
@@ -12,3 +13,4 @@ clean:
 	pkill node
 	rm -f $(shell pwd)/build/*
 	rm $(shell pwd)/pkg/crowdsourcing/platform/accounts.json
+	rm -rf $(shell pwd)/pkg/crowdsourcing/smartcontract/task
