@@ -8,7 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/platform"
-	ctask "github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/smartcontract/task"
+	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/smartcontract/ctask"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/task"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/encoder"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/ethereum"
@@ -19,6 +19,10 @@ const (
 	sigma = 250.0
 	EPS   = 1e-8
 )
+
+func init() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+}
 
 type Requester struct {
 	address    common.Address
@@ -63,34 +67,25 @@ func (r *Requester) Register() {
 	r.state = PENDING
 	r.opts = ethereum.KeyedTransactor(platform.CP.Client(), r.privateKey,
 		r.address, platform.CP.ChainID(), big.NewInt(0))
+	platform.CP.Register(r.address)
 }
 
-// CreateTask create a task by the requester
-// func (r *Requester) CreateTask(workers, reward int, encKey []byte, description string) {
-// 	if r.state != PENDING {
-// 		return
-// 	}
-// 	r.task = task.NewTask(big.NewInt(int64(workers)), big.NewInt(int64(reward)),
-// 		encKey, r.address, description, r.evaluation)
-// 	r.state = WAITING
-// }
-
 // PostTask create and post the task to platform
-func (r *Requester) PostTask(workers, reward int, encKey []byte, description string) {
+func (r *Requester) PostTask(workers, reward, reputation int, encKey []byte, description string) {
 	// Before post task, requester must deposit the corresponding collaterals
 	if r.state != PENDING {
 		return
 	}
-	_workers, _rewards := big.NewInt(int64(workers)), big.NewInt(int64(reward))
+	_workers, _rewards, _reputation := big.NewInt(int64(workers)), big.NewInt(int64(reward)), big.NewInt(int64(reputation))
 
 	collateral := new(big.Int)
 	collateral.Mul(_workers, _rewards)
 	// Now publishing the task to blockchain
-	taskAddress, _, taskContract, err := ctask.DeployTask(r.opts, platform.CP.Client(), _workers, _rewards, description)
-	ethereum.UpdateNonce(platform.CP.Client(), r.opts, r.address)
+	taskAddress, _, taskContract, err := ctask.DeployCtask(r.opts, platform.CP.Client(), _workers, _rewards, _reputation, description)
 	if err != nil {
 		log.Fatalf("Publish task error: %v\n", err)
 	}
+	ethereum.UpdateNonce(platform.CP.Client(), r.opts, r.address)
 	if err := ethereum.DepositCollateral(platform.CP.Client(), r.privateKey, r.address, taskAddress, collateral, []byte{0x01}); err != nil {
 		log.Fatalf("Requester deposite collaterals error: %v\n", err)
 	}
@@ -114,8 +109,8 @@ func (r *Requester) Rewarding() []bool {
 		evalResult := r.task.Eval()(data)
 		isok := r.isReward(evalResult)
 		rewardList[i] = isok
-		if _, err := r.task.Instance().Rewarding(r.opts, r.task.WorkerAddresses()[i], isok); err != nil {
-			log.Fatalf("Rewarding error: %v\n", err)
+		if _, err := r.task.Instance().Rewarding(r.opts, r.task.WorkerAddresses()[i], isok, platform.CP.InstanceAddress()); err != nil {
+			log.Fatalf("Rewarding %v error: %v\n", i, err)
 		}
 		ethereum.UpdateNonce(platform.CP.Client(), r.opts, r.address)
 	}
