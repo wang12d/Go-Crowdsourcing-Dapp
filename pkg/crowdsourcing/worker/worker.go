@@ -2,6 +2,7 @@ package worker
 
 import (
 	"crypto/ecdsa"
+	"log"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -13,7 +14,13 @@ import (
 
 var (
 	zero = big.NewInt(0)
+	lock = make(chan struct{}, 1)
 )
+
+func init() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	lock <- struct{}{}
+}
 
 type Worker struct {
 	address    common.Address
@@ -51,6 +58,9 @@ func (w *Worker) Register() {
 	w.state = PENDING
 	w.opts = ethereum.KeyedTransactor(platform.CP.Client(), w.privateKey,
 		w.address, platform.CP.ChainID(), big.NewInt(0))
+	<-lock
+	platform.CP.Register(w.address)
+	lock <- struct{}{}
 }
 
 // ParticipantTask decides whether the worker participant the current task

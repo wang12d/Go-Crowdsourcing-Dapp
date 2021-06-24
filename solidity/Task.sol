@@ -2,6 +2,7 @@
 pragma solidity >=0.6.0 <0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20Burnable.sol";
+import "./Platform.sol";
 
 // @title 移动众包-智能合约
 // 主要负责处理Workers和Requesters之间的关系，它需要
@@ -44,9 +45,11 @@ contract Task is ERC20Burnable {
         _deposition = 0;
         _setupDecimals(0);  // 因为我们只需要token来充当凭证，而不是真的数值
     }
+
     receive() external payable {
 
     }
+
     // 根据Solidity 0.6.2的描述进行修改 https://docs.soliditylang.org/en/v0.6.0/contracts.html#receive-ether-function.
     // 只有requester上传押金到该智能合约
     fallback() external payable {
@@ -65,7 +68,6 @@ contract Task is ERC20Burnable {
         // 在requester使用自己的伪名进行任务发布以后，requester能够获得token的分发
         // 并且在workers完成任务的时候才能够获得token作为奖励
         _rewards = _deposition / _workerRequired;   // 如果requester增加其押金
-        _mint(_requester, _workerRequired);         // 在有必要的时候可以将token销毁
         emit TaskPublished(_rewards, _requester, _description);
     }
     // 给定一个地址，查看其所需要的Workers数量是否已满
@@ -76,9 +78,10 @@ contract Task is ERC20Burnable {
     * 但是workers在注册时会被基于一个不记名的token，该token时一个
     * 参与的凭证
     */
-    function register() public {
+    function register(Platform p) public {
         require(_remainingWorkers > 0, "The task do not need workers anymore");
         address worker = msg.sender;
+        require(p.balanceOf(worker) > 0, "The worker does not have the ticket to join the task");
         // require (balanceOf(worker) > 0, "Only worker with token can participant the task");
         // 此时任务算是被workers接受了
         _remainingWorkers--;
@@ -110,19 +113,19 @@ contract Task is ERC20Burnable {
     * 按照我们设计的协议，任务应该是由Workers直接提交到Requesters的，
     * 但是目前在这里作为测试用例，在智能合约上面实现该操作
     */
-    function Rewarding(address payable worker, bool isok) public {
+    function Rewarding(address payable worker, bool isok, Platform p) public {
         // 只有Requester才能调用此信息
         require(msg.sender == _requester, "Only requester can call this to workers who participants its task and has not been rewarded.");
         if (isok) {
             worker.transfer(_rewards);
             // 如果该worker任务完成很好，那么则授予一个token给他进行奖励
             // 于是它下次也可以参与任务
-            // transfer(worker, 1);
+            p.transfer(worker, 1);
         }
         else {
             msg.sender.transfer(_rewards); // 退还押金
             // 该worker并没有诚实的参与任务，需要销毁一个token
-            // burn(1);
+            p.burnFrom(worker, 1);
         }
         _deposition -= _rewards;
     }

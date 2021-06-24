@@ -11,23 +11,26 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing"
+	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/smartcontract/cplatform"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/ethereum"
 )
 
 type platform struct {
-	workers     int                 // The number of workers in the Plantform
-	requesters  int                 // The number of requesters in the Plantform
-	keyIndex    int                 // Key index used to get the private key
-	privateKeys []string            // All of private keys
+	workers     int      // The number of workers in the Plantform
+	requesters  int      // The number of requesters in the Plantform
+	keyIndex    int      // Key index used to get the private key
+	privateKeys []string // All of private keys
+	privateKey  *ecdsa.PrivateKey
 	addressLock chan struct{}       // The multithread lock of update index of platform
 	totalData   map[string][][]byte // The data needed by each task, their id as key
 	client      *ethclient.Client   // The client of whole ethereum network
 	address     common.Address
-	instance    *crowdsourcing.Crowdsourcing
+	instance    *cplatform.Cplatform
 	chainID     *big.Int
+	opts        *bind.TransactOpts
 }
 
 const (
@@ -43,6 +46,7 @@ var (
 )
 
 func init() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	platformOnce.Do(func() {
 		client, err := ethclient.Dial(localURL)
 		if err != nil {
@@ -83,10 +87,11 @@ func init() {
 			log.Fatalf("Get chain ID error: %v\n", err)
 		}
 		platformAuth := ethereum.KeyedTransactor(client, privateKey, address, chainID, big.NewInt(0))
-		platformAddress, _, platformInstance, err := crowdsourcing.DeployCrowdsourcing(platformAuth, client)
+		platformAddress, _, platformInstance, err := cplatform.DeployCplatform(platformAuth, client)
 		if err != nil {
 			log.Fatalf("Deploy platform error: %v\n", err)
 		}
+		ethereum.UpdateNonce(client, platformAuth, platformAddress)
 		CP = &platform{
 			addressLock: make(chan struct{}, 1),
 			keyIndex:    1,
@@ -98,6 +103,8 @@ func init() {
 			address:     platformAddress,
 			instance:    platformInstance,
 			chainID:     chainID,
+			opts:        platformAuth,
+			privateKey:  privateKey,
 		}
 		// Get the mutex lock
 		CP.addressLock <- struct{}{}
@@ -131,10 +138,21 @@ func (cp *platform) Address() common.Address {
 }
 
 // Instance returns the instance of crowdsourcing contract
-func (cp *platform) Instance() *crowdsourcing.Crowdsourcing {
+func (cp *platform) Instance() *cplatform.Cplatform {
 	return cp.instance
 }
 
 func (cp *platform) ChainID() *big.Int {
 	return cp.chainID
+}
+
+func (cp *platform) Opts() *bind.TransactOpts {
+	return cp.opts
+}
+
+func (cp *platform) Register(address common.Address) {
+	if _, err := cp.instance.Register(cp.opts, address); err != nil {
+		log.Fatalf("Register to platform error: %v\n", err)
+	}
+	ethereum.UpdateNonce(cp.client, cp.opts, cp.address)
 }
