@@ -2,7 +2,6 @@ package worker
 
 import (
 	"crypto/ecdsa"
-	"log"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -55,30 +54,20 @@ func (w *Worker) Register() {
 }
 
 // ParticipantTask decides whether the worker participant the current task
-func (w *Worker) ParticipantTask() {
+func (w *Worker) ParticipantTask(t *task.Task) {
 	if w.state != PENDING {
 		return
 	}
-	taskList := platform.CP.TaskList()
-	for _, t := range taskList {
-		t.TaskLock() //
-		if t.RemainingWorkers().Cmp(zero) > 0 {
-			// Worker must deposit the corresponding collaterals before participant task
-			if err := ethereum.DepositCollateral(platform.CP.Client(), w.privateKey,
-				w.address, platform.CP.Address(), t.Collateral(), []byte{0x00}); err != nil {
-				log.Fatalf("Worker deposite collaterals error: %v\n", err)
-			}
-			ethereum.UpdateNonce(platform.CP.Client(), w.opts, w.address)
-			platform.CP.ParticipantCrowdsourcingTask(w.opts, w.address, t.Address())
-			w.id = int(t.RemainingWorkers().Int64()) - 1
-			w.task = t
-			t.Participating(w.address)
-			t.TaskRelease()
-			w.state = WORKING
-			return
-		}
+	t.TaskLock() //
+	if t.RemainingWorkers().Cmp(zero) > 0 {
+		w.id = int(t.RemainingWorkers().Int64()) - 1
+		w.task = t
+		t.Participating(w.opts, w.address)
 		t.TaskRelease()
+		w.state = WORKING
+		return
 	}
+	t.TaskRelease()
 }
 
 // CollectData collects data from surrounding environment
@@ -94,7 +83,8 @@ func (w *Worker) SubmitData() {
 	if w.state != WORKING {
 		return
 	}
-	platform.CP.SubmitTaskData(w.opts, w.address, w.task.Address(), w.task, w.data, w.id)
+	// platform.CP.SubmitTaskData(w.opts, w.address, w.task.Address(), w.task, w.data, w.id)
+	w.task.SubmitData(w.opts, w.id, w.data)
 	w.state = FIN
 }
 

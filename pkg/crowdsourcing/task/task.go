@@ -1,10 +1,15 @@
 package task
 
 import (
+	"log"
 	"math/big"
 	"strconv"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/platform"
+	ctask "github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/smartcontract/task"
+	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/ethereum"
 )
 
 var (
@@ -22,20 +27,23 @@ type Task struct {
 	remainingWorkers *big.Int
 	reward           *big.Int
 	workerLock       chan struct{}
-	encKey           Key // The key used to encrypted the uploaded data in crowdsourcing
-	description      string
+	encKey           Key    // The key used to encrypted the uploaded data in crowdsourcing
+	description      string // The description of crowdsourcing task
 	id               string
 	eval             EvalFunc
-	address          common.Address
+	address          common.Address // The address of deployed crowdsourcing task
 	collaterals      *big.Int
-	workerAddresses  []common.Address
+	workerAddresses  []common.Address // The address of participant workers
+	instance         *ctask.Task      // The depolyed smartcontract object
+	data             [][]byte         // Data submitted by workers
 }
 
 func init() {
 	idLock <- struct{}{}
 }
 
-func NewTask(workerRequired, reward *big.Int, encKey Key, address common.Address, description string, eval EvalFunc) *Task {
+func NewTask(workerRequired, reward *big.Int, encKey Key,
+	address common.Address, description string, eval EvalFunc, instance *ctask.Task) *Task {
 	<-idLock
 	currentID := id
 	id++
@@ -56,6 +64,8 @@ func NewTask(workerRequired, reward *big.Int, encKey Key, address common.Address
 		collaterals:      collaterals,
 		address:          address,
 		workerAddresses:  make([]common.Address, workerRequired.Int64()),
+		instance:         instance,
+		data:             make([][]byte, workerRequired.Int64()),
 	}
 	// Get the worker lock of current worker
 	newTask.workerLock <- struct{}{}
@@ -106,11 +116,20 @@ func (t *Task) WorkerAddresses() []common.Address {
 	return t.workerAddresses
 }
 
+// Instance returns the deployed task object in Ethereum
+func (t *Task) Instance() *ctask.Task {
+	return t.instance
+}
+
 // Participating indicates whether the participating of task success
-func (t *Task) Participating(workerAddress common.Address) bool {
+func (t *Task) Participating(opts *bind.TransactOpts, workerAddress common.Address) bool {
 	if t.remainingWorkers.Cmp(big.NewInt(0)) <= 0 {
 		return false
 	}
+	if _, err := t.instance.Register(opts); err != nil {
+		log.Fatalf("Worker register crowdsourcing task error: %v\n", err)
+	}
+	ethereum.UpdateNonce(platform.CP.Client(), opts, workerAddress)
 	t.workerAddresses[t.remainingWorkers.Int64()-1] = workerAddress
 	t.remainingWorkers.Sub(t.remainingWorkers, big.NewInt(1))
 	return true
@@ -128,4 +147,15 @@ func (t *Task) Eval() EvalFunc {
 // ID returns the unique id the crowdsourcing task
 func (t *Task) ID() string {
 	return t.id
+}
+
+// SubmitData receives data submitted from worker
+func (t *Task) SubmitData(opts *bind.TransactOpts, workerID int, data []byte) {
+	t.data[workerID] = data
+	t.instance.SubmitData(opts, data)
+}
+
+// Data returns the data submitted from workers
+func (t *Task) Data() [][]byte {
+	return t.data
 }

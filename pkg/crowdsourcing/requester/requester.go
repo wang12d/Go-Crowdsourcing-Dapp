@@ -2,13 +2,13 @@ package requester
 
 import (
 	"crypto/ecdsa"
-	"fmt"
 	"log"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/platform"
+	ctask "github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/smartcontract/task"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/task"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/encoder"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/ethereum"
@@ -66,26 +66,38 @@ func (r *Requester) Register() {
 }
 
 // CreateTask create a task by the requester
-func (r *Requester) CreateTask(workers, reward int, encKey []byte, description string) {
+// func (r *Requester) CreateTask(workers, reward int, encKey []byte, description string) {
+// 	if r.state != PENDING {
+// 		return
+// 	}
+// 	r.task = task.NewTask(big.NewInt(int64(workers)), big.NewInt(int64(reward)),
+// 		encKey, r.address, description, r.evaluation)
+// 	r.state = WAITING
+// }
+
+// PostTask create and post the task to platform
+func (r *Requester) PostTask(workers, reward int, encKey []byte, description string) {
+	// Before post task, requester must deposit the corresponding collaterals
 	if r.state != PENDING {
 		return
 	}
-	r.task = task.NewTask(big.NewInt(int64(workers)), big.NewInt(int64(reward)),
-		encKey, r.address, description, r.evaluation)
-	r.state = WAITING
-}
+	_workers, _rewards := big.NewInt(int64(workers)), big.NewInt(int64(reward))
 
-// PostTask post the task to platform
-func (r *Requester) PostTask() {
-	// Before post task, requester must deposit the corresponding collaterals
 	collateral := new(big.Int)
-	collateral.Mul(r.task.Reward(), r.task.WorkerRequired())
+	collateral.Mul(_workers, _rewards)
 	// Now publishing the task to blockchain
-	if err := ethereum.DepositCollateral(platform.CP.Client(), r.privateKey, r.address, platform.CP.Address(), collateral, []byte{0x01}); err != nil {
+	taskAddress, _, taskContract, err := ctask.DeployTask(r.opts, platform.CP.Client(), _workers, _rewards, description)
+	ethereum.UpdateNonce(platform.CP.Client(), r.opts, r.address)
+	if err != nil {
+		log.Fatalf("Publish task error: %v\n", err)
+	}
+	if err := ethereum.DepositCollateral(platform.CP.Client(), r.privateKey, r.address, taskAddress, collateral, []byte{0x01}); err != nil {
 		log.Fatalf("Requester deposite collaterals error: %v\n", err)
 	}
 	ethereum.UpdateNonce(platform.CP.Client(), r.opts, r.address)
-	platform.CP.ReceiveTask(r.opts, r.address, r.task)
+	r.task = task.NewTask(big.NewInt(int64(workers)), big.NewInt(int64(reward)),
+		encKey, taskAddress, description, r.evaluation, taskContract)
+	r.state = WAITING
 }
 
 // Task returns the task of the requester
@@ -97,12 +109,12 @@ func (r *Requester) Task() *task.Task {
 // worth reward or not
 func (r *Requester) Rewarding() []bool {
 	rewardList := make([]bool, r.task.WorkerRequired().Int64())
-	for i, data := range platform.CP.CheckData(r.task) {
+	data := r.task.Data()
+	for i, data := range data {
 		evalResult := r.task.Eval()(data)
 		isok := r.isReward(evalResult)
 		rewardList[i] = isok
-		fmt.Println(r.task.WorkerAddresses()[i])
-		if _, err := platform.CP.Instance().Rewarding(r.opts, r.task.WorkerAddresses()[i], isok); err != nil {
+		if _, err := r.task.Instance().Rewarding(r.opts, r.task.WorkerAddresses()[i], isok); err != nil {
 			log.Fatalf("Rewarding error: %v\n", err)
 		}
 		ethereum.UpdateNonce(platform.CP.Client(), r.opts, r.address)
