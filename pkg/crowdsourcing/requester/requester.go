@@ -71,17 +71,17 @@ func (r *Requester) Register() {
 }
 
 // PostTask create and post the task to platform
-func (r *Requester) PostTask(workers, reward int, encKey []byte, description string) {
+func (r *Requester) PostTask(workers, reward, reputation int, encKey []byte, description string) {
 	// Before post task, requester must deposit the corresponding collaterals
 	if r.state != PENDING {
 		return
 	}
-	_workers, _rewards := big.NewInt(int64(workers)), big.NewInt(int64(reward))
+	_workers, _rewards, _reputation := big.NewInt(int64(workers)), big.NewInt(int64(reward)), big.NewInt(int64(reputation))
 
 	collateral := new(big.Int)
 	collateral.Mul(_workers, _rewards)
 	// Now publishing the task to blockchain
-	taskAddress, _, taskContract, err := ctask.DeployCtask(r.opts, platform.CP.Client(), _workers, _rewards, description)
+	taskAddress, _, taskContract, err := ctask.DeployCtask(r.opts, platform.CP.Client(), _workers, _rewards, _reputation, description)
 	if err != nil {
 		log.Fatalf("Publish task error: %v\n", err)
 	}
@@ -109,8 +109,8 @@ func (r *Requester) Rewarding() []bool {
 		evalResult := r.task.Eval()(data)
 		isok := r.isReward(evalResult)
 		rewardList[i] = isok
-		if _, err := r.task.Instance().Rewarding(r.opts, r.task.WorkerAddresses()[i], isok, platform.CP.Address()); err != nil {
-			log.Fatalf("Rewarding error: %v\n", err)
+		if _, err := r.task.Instance().Rewarding(r.opts, r.task.WorkerAddresses()[i], isok, platform.CP.InstanceAddress()); err != nil {
+			log.Fatalf("Rewarding %v error: %v\n", i, err)
 		}
 		ethereum.UpdateNonce(platform.CP.Client(), r.opts, r.address)
 	}

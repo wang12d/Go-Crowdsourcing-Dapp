@@ -37,7 +37,7 @@ func main() {
 	}
 	lock.Wait()
 
-	r.PostTask(numberOfWorkers, rewards, []byte(fmt.Sprintf("%032v", "a")), "Cluster")
+	r.PostTask(numberOfWorkers, rewards, 1, []byte(fmt.Sprintf("%032v", "a")), "Cluster")
 	// Now finding the task
 	for i := 0; i < numberOfWorkers; i++ {
 		lock.Add(1)

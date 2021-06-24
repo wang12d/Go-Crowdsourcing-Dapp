@@ -9,7 +9,7 @@ import "./Platform.sol";
 // 进行：
 //      1. 负责审核Workers参与任务的请求
 //      2. 当Requesters创建任务时，保存Requesters所需要的押金
-contract Task is ERC20Burnable {
+contract Task {
     // 对于一个任务，剩下的Workers数量
     uint _workerRequired;
     // 计算每个Worker应该获得的奖励
@@ -20,6 +20,7 @@ contract Task is ERC20Burnable {
     uint _deposition;
     uint _remainingWorkers;
     bytes[] _data;
+    uint256 _reputation;
      
     // 负责在特定条件下用来进行交互的Event，进行交易的触发
     // 假若Requester完成了任务并进行了评估，那么它就会触发一个交易来
@@ -36,14 +37,14 @@ contract Task is ERC20Burnable {
     * Workers需要将押金从传递到智能合约的地址 
     * 后期为了进行权限控制，需要判断消息发送者是否真的为Workers
     */
-    constructor(uint workerRequired, uint rewards, string memory description) public ERC20("TaskSubmissionTicket", "TST") {
+    constructor(uint workerRequired, uint rewards, uint256 reputation, string memory description) public  {
         _workerRequired = workerRequired;
         _rewards = rewards;
         _description = description;
         _requester = msg.sender;
         _remainingWorkers = workerRequired;
         _deposition = 0;
-        _setupDecimals(0);  // 因为我们只需要token来充当凭证，而不是真的数值
+        _reputation = reputation;
     }
 
     receive() external payable {
@@ -80,8 +81,8 @@ contract Task is ERC20Burnable {
     */
     function register(Platform p) public {
         require(_remainingWorkers > 0, "The task do not need workers anymore");
+        require(p.reputation(msg.sender) >= _reputation, "Not enough reputation to participant the task");
         address worker = msg.sender;
-        require(p.balanceOf(worker) > 0, "The worker does not have the ticket to join the task");
         // require (balanceOf(worker) > 0, "Only worker with token can participant the task");
         // 此时任务算是被workers接受了
         _remainingWorkers--;
@@ -120,12 +121,12 @@ contract Task is ERC20Burnable {
             worker.transfer(_rewards);
             // 如果该worker任务完成很好，那么则授予一个token给他进行奖励
             // 于是它下次也可以参与任务
-            p.transfer(worker, 1);
+            p.increaseReputation(worker);
         }
         else {
             msg.sender.transfer(_rewards); // 退还押金
             // 该worker并没有诚实的参与任务，需要销毁一个token
-            p.burnFrom(worker, 1);
+            // p.burnFrom(worker, 1);
         }
         _deposition -= _rewards;
     }

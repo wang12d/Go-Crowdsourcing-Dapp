@@ -19,18 +19,19 @@ import (
 )
 
 type platform struct {
-	workers     int      // The number of workers in the Plantform
-	requesters  int      // The number of requesters in the Plantform
-	keyIndex    int      // Key index used to get the private key
-	privateKeys []string // All of private keys
-	privateKey  *ecdsa.PrivateKey
-	addressLock chan struct{}       // The multithread lock of update index of platform
-	totalData   map[string][][]byte // The data needed by each task, their id as key
-	client      *ethclient.Client   // The client of whole ethereum network
-	address     common.Address
-	instance    *cplatform.Cplatform
-	chainID     *big.Int
-	opts        *bind.TransactOpts
+	workers         int      // The number of workers in the Plantform
+	requesters      int      // The number of requesters in the Plantform
+	keyIndex        int      // Key index used to get the private key
+	privateKeys     []string // All of private keys
+	privateKey      *ecdsa.PrivateKey
+	addressLock     chan struct{}       // The multithread lock of update index of platform
+	totalData       map[string][][]byte // The data needed by each task, their id as key
+	client          *ethclient.Client   // The client of whole ethereum network
+	address         common.Address
+	instance        *cplatform.Cplatform
+	chainID         *big.Int
+	opts            *bind.TransactOpts
+	instanceAddress common.Address
 }
 
 const (
@@ -91,20 +92,21 @@ func init() {
 		if err != nil {
 			log.Fatalf("Deploy platform error: %v\n", err)
 		}
-		ethereum.UpdateNonce(client, platformAuth, platformAddress)
+		ethereum.UpdateNonce(client, platformAuth, address)
 		CP = &platform{
-			addressLock: make(chan struct{}, 1),
-			keyIndex:    1,
-			workers:     0,
-			requesters:  0,
-			privateKeys: privateKeys,
-			totalData:   make(map[string][][]byte),
-			client:      client,
-			address:     platformAddress,
-			instance:    platformInstance,
-			chainID:     chainID,
-			opts:        platformAuth,
-			privateKey:  privateKey,
+			addressLock:     make(chan struct{}, 1),
+			keyIndex:        1,
+			workers:         0,
+			requesters:      0,
+			privateKeys:     privateKeys,
+			totalData:       make(map[string][][]byte),
+			client:          client,
+			instanceAddress: platformAddress,
+			instance:        platformInstance,
+			chainID:         chainID,
+			opts:            platformAuth,
+			privateKey:      privateKey,
+			address:         address,
 		}
 		// Get the mutex lock
 		CP.addressLock <- struct{}{}
@@ -132,14 +134,18 @@ func (cp *platform) Client() *ethclient.Client {
 	return cp.client
 }
 
-// Address returns the address of deployed Client
-func (cp *platform) Address() common.Address {
-	return cp.address
+// Address returns the address of deployed platform
+func (cp *platform) InstanceAddress() common.Address {
+	return cp.instanceAddress
 }
 
 // Instance returns the instance of crowdsourcing contract
 func (cp *platform) Instance() *cplatform.Cplatform {
 	return cp.instance
+}
+
+func (cp *platform) Address() common.Address {
+	return cp.address
 }
 
 func (cp *platform) ChainID() *big.Int {

@@ -127,7 +127,7 @@ func (t *Task) Participating(opts *bind.TransactOpts, workerAddress common.Addre
 	if t.remainingWorkers.Cmp(big.NewInt(0)) <= 0 {
 		return false
 	}
-	if _, err := t.instance.Register(opts, platform.CP.Address()); err != nil {
+	if _, err := t.instance.Register(opts, platform.CP.InstanceAddress()); err != nil {
 		log.Fatalf("Worker register crowdsourcing task error: %v\n", err)
 	}
 	ethereum.UpdateNonce(platform.CP.Client(), opts, workerAddress)
