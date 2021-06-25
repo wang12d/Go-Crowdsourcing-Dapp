@@ -2,6 +2,7 @@ package requester
 
 import (
 	"crypto/ecdsa"
+	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/cryptograph"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/metrics"
 	"log"
 	"math/big"
@@ -116,8 +117,8 @@ func (r *Requester) Rewarding() []bool {
 	defer metrics.TimeCost(time.Now(), caller)
 	rewardList := make([]bool, r.task.WorkerRequired().Int64())
 	data := r.task.Data()
-	for i, data := range data {
-		evalResult := r.task.Eval()(data)
+	for i, encData := range data {
+		evalResult := r.task.Eval()(cryptograph.DecryptData(encData, r.task.EncKey()))
 		isok := r.isReward(evalResult)
 		rewardList[i] = isok
 		if _, err := r.task.Instance().Rewarding(r.opts, r.task.WorkerAddresses()[i], isok, platform.CP.InstanceAddress()); err != nil {
