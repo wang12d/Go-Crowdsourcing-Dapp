@@ -19,8 +19,6 @@ func main() {
 	// Create a Task with 5 workers
 	r := requester.NewRequester()
 	r.Register()
-	r.CreateTask(numberOfWorkers, rewards, []byte(fmt.Sprintf("%032v", "a")), "Cluster")
-	r.PostTask()
 
 	// Create five workers
 	workers := make([]*worker.Worker, numberOfWorkers)
@@ -39,12 +37,13 @@ func main() {
 	}
 	lock.Wait()
 
+	r.PostTask(numberOfWorkers, rewards, 1, []byte(fmt.Sprintf("%032v", "a")), "Cluster")
 	// Now finding the task
 	for i := 0; i < numberOfWorkers; i++ {
 		lock.Add(1)
 		go func(i int) {
 			defer lock.Done()
-			workers[i].ParticipantTask()
+			workers[i].ParticipantTask(r.Task())
 		}(i)
 	}
 	lock.Wait()

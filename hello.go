@@ -10,7 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/ethereum"
-	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/smartcontract"
 )
 
 const (
@@ -51,13 +50,13 @@ func main() {
 	workerCollateral.SetString("4000000000000000000", 10)
 	// Creating a transaction to deposit to the smart contract
 	start := time.Now()
-	if err = smartcontract.DepositCollateral(client, requesterPrivateKey, requesterAddress, contractAddress, collateral, []byte{0x01}); err != nil {
+	if err = ethereum.DepositCollateral(client, requesterPrivateKey, requesterAddress, contractAddress, collateral, []byte{0x01}); err != nil {
 		log.Fatal("Collateral deposition error: ", err)
 	}
-	if err = smartcontract.DepositCollateral(client, workerAPrivateKey, workerAAddress, contractAddress, workerCollateral, []byte{0x00}); err != nil {
+	if err = ethereum.DepositCollateral(client, workerAPrivateKey, workerAAddress, contractAddress, workerCollateral, []byte{0x00}); err != nil {
 		log.Fatal("Collateral deposition error: ", err)
 	}
-	if err = smartcontract.DepositCollateral(client, workerBPrivateKey, workerBAddress, contractAddress, workerCollateral, []byte{0x00}); err != nil {
+	if err = ethereum.DepositCollateral(client, workerBPrivateKey, workerBAddress, contractAddress, workerCollateral, []byte{0x00}); err != nil {
 		log.Fatal("Collateral deposition error: ", err)
 	}
 	// Requester publishes the transaction
