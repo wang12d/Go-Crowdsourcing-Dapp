@@ -134,7 +134,7 @@ func (cp *platform) Client() *ethclient.Client {
 	return cp.client
 }
 
-// Address returns the address of deployed platform
+// InstanceAddress returns the address of deployed platform
 func (cp *platform) InstanceAddress() common.Address {
 	return cp.instanceAddress
 }

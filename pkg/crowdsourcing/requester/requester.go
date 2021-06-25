@@ -2,8 +2,10 @@ package requester
 
 import (
 	"crypto/ecdsa"
+	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/metrics"
 	"log"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -58,6 +60,9 @@ func (r *Requester) isReward(evalResult float64) bool {
 
 // Register register the worker into the Crowdsourcing platform
 func (r *Requester) Register() {
+	caller := metrics.GetCallerName()
+	defer metrics.GetMemoryStatus(caller)
+	defer metrics.TimeCost(time.Now(), caller)
 	if r.state != INIT { // Only worker at INIT can register
 		return
 	}
@@ -72,6 +77,9 @@ func (r *Requester) Register() {
 
 // PostTask create and post the task to platform
 func (r *Requester) PostTask(workers, reward, reputation int, encKey []byte, description string) {
+	caller := metrics.GetCallerName()
+	defer metrics.GetMemoryStatus(caller)
+	defer metrics.TimeCost(time.Now(), caller)
 	// Before post task, requester must deposit the corresponding collaterals
 	if r.state != PENDING {
 		return
@@ -103,6 +111,9 @@ func (r *Requester) Task() *task.Task {
 // Rewarding returns a list which indicate whether the corresponding data
 // worth reward or not
 func (r *Requester) Rewarding() []bool {
+	caller := metrics.GetCallerName()
+	defer metrics.GetMemoryStatus(caller)
+	defer metrics.TimeCost(time.Now(), caller)
 	rewardList := make([]bool, r.task.WorkerRequired().Int64())
 	data := r.task.Data()
 	for i, data := range data {
