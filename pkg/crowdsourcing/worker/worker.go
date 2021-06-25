@@ -2,8 +2,10 @@ package worker
 
 import (
 	"crypto/ecdsa"
+	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/metrics"
 	"log"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -49,6 +51,9 @@ func NewWorker() *Worker {
 
 // Register register the worker into the Crowdsourcing platform
 func (w *Worker) Register() {
+	caller := metrics.GetCallerName()
+	defer metrics.GetMemoryStatus(caller)
+	defer metrics.TimeCost(time.Now(), caller)
 	if w.state != INIT { // Only worker at INIT can register
 		return
 	}
@@ -65,6 +70,9 @@ func (w *Worker) Register() {
 
 // ParticipantTask decides whether the worker participant the current task
 func (w *Worker) ParticipantTask(t *task.Task) {
+	caller := metrics.GetCallerName()
+	defer metrics.GetMemoryStatus(caller)
+	defer metrics.TimeCost(time.Now(), caller)
 	if w.state != PENDING {
 		return
 	}
@@ -90,6 +98,9 @@ func (w *Worker) CollectData(data []byte) {
 
 // SubmitData uploads the collected data to the task it participated
 func (w *Worker) SubmitData() {
+	caller := metrics.GetCallerName()
+	defer metrics.GetMemoryStatus(caller)
+	defer metrics.TimeCost(time.Now(), caller)
 	if w.state != WORKING {
 		return
 	}

@@ -1,15 +1,14 @@
 package task
 
 import (
-	"log"
-	"math/big"
-	"strconv"
-
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/platform"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/smartcontract/ctask"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/ethereum"
+	"log"
+	"math/big"
+	"strconv"
 )
 
 var (
