@@ -1,22 +1,22 @@
 package task
 
 import (
+	"log"
+	"math/big"
+	"strconv"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/platform"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/smartcontract/ctask"
+	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/cryptograph"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/ethereum"
-	"log"
-	"math/big"
-	"strconv"
 )
 
 var (
 	id     = 0
 	idLock = make(chan struct{}, 1)
 )
-
-type Key []byte
 
 // EvalFunc is the Evaluation function
 type EvalFunc func([]byte) float64
@@ -26,8 +26,8 @@ type Task struct {
 	remainingWorkers *big.Int
 	reward           *big.Int
 	workerLock       chan struct{}
-	encKey           Key    // The key used to encrypted the uploaded data in crowdsourcing
-	description      string // The description of crowdsourcing task
+	encryptor        cryptograph.Encryptor // The encryptor used to encrypted the uploaded data in crowdsourcing
+	description      string                // The description of crowdsourcing task
 	id               string
 	eval             EvalFunc
 	address          common.Address // The address of deployed crowdsourcing task
@@ -42,7 +42,7 @@ func init() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 }
 
-func NewTask(workerRequired, reward *big.Int, encKey Key,
+func NewTask(workerRequired, reward *big.Int, encryptor cryptograph.Encryptor,
 	address common.Address, description string, eval EvalFunc, instance *ctask.Ctask) *Task {
 	<-idLock
 	currentID := id
@@ -56,7 +56,7 @@ func NewTask(workerRequired, reward *big.Int, encKey Key,
 		workerRequired:   workerRequired,
 		remainingWorkers: remainingWorkers,
 		reward:           reward,
-		encKey:           encKey,
+		encryptor:        encryptor,
 		description:      description,
 		workerLock:       make(chan struct{}, 1),
 		id:               strconv.Itoa(currentID),
@@ -94,8 +94,8 @@ func (t *Task) Collateral() *big.Int {
 }
 
 // EncKey return the encryption key of data needed
-func (t *Task) EncKey() Key {
-	return t.encKey
+func (t *Task) Encryptor() cryptograph.Encryptor {
+	return t.encryptor
 }
 
 func (t *Task) TaskLock() {
