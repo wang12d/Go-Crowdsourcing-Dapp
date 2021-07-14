@@ -12,8 +12,10 @@ Platform.abi Platform.bin:
 accounts.json:
 	touch $(shell pwd)/pkg/crowdsourcing/platform/accounts.json
 
-clean:
+kill:
 	pkill node
+
+clean: kill
 	rm -f $(shell pwd)/build/*
 	rm $(shell pwd)/pkg/crowdsourcing/platform/accounts.json
 	rm -rf $(shell pwd)/pkg/crowdsourcing/smartcontract/task
