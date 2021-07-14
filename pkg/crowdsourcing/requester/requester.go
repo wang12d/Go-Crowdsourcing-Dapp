@@ -2,11 +2,12 @@ package requester
 
 import (
 	"crypto/ecdsa"
-	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/cryptograph"
-	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/metrics"
 	"log"
 	"math/big"
 	"time"
+
+	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/cryptograph"
+	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/metrics"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -77,7 +78,7 @@ func (r *Requester) Register() {
 }
 
 // PostTask create and post the task to platform
-func (r *Requester) PostTask(workers, reward, reputation int, encKey []byte, description string) {
+func (r *Requester) PostTask(workers, reward, reputation int, encKey cryptograph.Encryptor, description string) {
 	caller := metrics.GetCallerName()
 	defer metrics.GetMemoryStatus(caller)
 	defer metrics.TimeCost(time.Now(), caller)
@@ -111,14 +112,18 @@ func (r *Requester) Task() *task.Task {
 
 // Rewarding returns a list which indicate whether the corresponding data
 // worth reward or not
-func (r *Requester) Rewarding() []bool {
+func (r *Requester) Rewarding(decryptor cryptograph.Decryptor) []bool {
 	caller := metrics.GetCallerName()
 	defer metrics.GetMemoryStatus(caller)
 	defer metrics.TimeCost(time.Now(), caller)
 	rewardList := make([]bool, r.task.WorkerRequired().Int64())
 	data := r.task.Data()
 	for i, encData := range data {
-		evalResult := r.task.Eval()(cryptograph.DecryptData(encData, r.task.EncKey()))
+		rawData, err := decryptor.DecryptData(encData)
+		if err != nil {
+			log.Fatalf("Rewarding error when decrypting: %v\n", err)
+		}
+		evalResult := r.task.Eval()(rawData)
 		isok := r.isReward(evalResult)
 		rewardList[i] = isok
 		if _, err := r.task.Instance().Rewarding(r.opts, r.task.WorkerAddresses()[i], isok, platform.CP.InstanceAddress()); err != nil {
