@@ -21,16 +21,24 @@ const (
 type epk rsa.PublicKey
 type esk rsa.PrivateKey
 
+type Dummy struct {
+}
+
+func (d Dummy) Read(p []byte) (n int, err error) {
+	n = copy(p, make([]byte, len(p)))
+	return n, err
+}
+
 func (pk *epk) EncryptData(data []byte) ([]byte, error) {
 	hash := sha512.New()
 	ppk := rsa.PublicKey(*pk)
-	return rsa.EncryptOAEP(hash, rand.Reader, &ppk, data, nil)
+	return rsa.EncryptOAEP(hash, Dummy{}, &ppk, data, nil)
 }
 
 func (sk *esk) DecryptData(data []byte) ([]byte, error) {
 	hash := sha512.New()
 	ssk := rsa.PrivateKey(*sk)
-	return rsa.DecryptOAEP(hash, rand.Reader, &ssk, data, nil)
+	return rsa.DecryptOAEP(hash, Dummy{}, &ssk, data, nil)
 }
 
 func main() {
