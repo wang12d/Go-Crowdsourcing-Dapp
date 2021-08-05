@@ -1,8 +1,11 @@
 package main
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha512"
 	"fmt"
-	"math/rand"
+	mrand "math/rand"
 	"sync"
 
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/requester"
@@ -15,11 +18,37 @@ const (
 	rewards         = 1
 )
 
+type epk rsa.PublicKey
+type esk rsa.PrivateKey
+
+type Dummy struct {
+}
+
+func (d Dummy) Read(p []byte) (n int, err error) {
+	n = copy(p, make([]byte, len(p)))
+	return n, err
+}
+
+func (pk *epk) EncryptData(data []byte) ([]byte, error) {
+	hash := sha512.New()
+	ppk := rsa.PublicKey(*pk)
+	return rsa.EncryptOAEP(hash, Dummy{}, &ppk, data, nil)
+}
+
+func (sk *esk) DecryptData(data []byte) ([]byte, error) {
+	hash := sha512.New()
+	ssk := rsa.PrivateKey(*sk)
+	return rsa.DecryptOAEP(hash, Dummy{}, &ssk, data, nil)
+}
+
 func main() {
 	// Create a Task with 5 workers
 	r := requester.NewRequester()
 	r.Register()
 
+	sk, _ := rsa.GenerateKey(rand.Reader, 2048)
+	pk := epk(sk.PublicKey)
+	xsk := esk(*sk)
 	// Create five workers
 	workers := make([]*worker.Worker, numberOfWorkers)
 	for i := 0; i < numberOfWorkers; i++ {
@@ -37,7 +66,7 @@ func main() {
 	}
 	lock.Wait()
 
-	r.PostTask(numberOfWorkers, rewards, 1, []byte(fmt.Sprintf("%032v", "a")), "Cluster")
+	r.PostTask(numberOfWorkers, rewards, 1, &pk, "Cluster")
 	// Now finding the task
 	for i := 0; i < numberOfWorkers; i++ {
 		lock.Add(1)
@@ -51,7 +80,7 @@ func main() {
 	// Now collecting data
 	data := make([][]byte, numberOfWorkers)
 	for i := 0; i < numberOfWorkers; i++ {
-		numeric := rand.Float64() * 1000.0
+		numeric := mrand.Float64() * 1000.0
 		fmt.Printf("%v %v %v\n", workers[i].ID(), numeric, workers[i].Address())
 		data[i] = encoder.Float64ToBytes(numeric)
 	}
@@ -65,5 +94,5 @@ func main() {
 	}
 	lock.Wait()
 	// Verify the uploaded data
-	fmt.Println(r.Rewarding())
+	fmt.Println(r.Rewarding(&xsk))
 }

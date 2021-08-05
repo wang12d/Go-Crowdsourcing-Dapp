@@ -2,11 +2,11 @@ package worker
 
 import (
 	"crypto/ecdsa"
-	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/cryptograph"
-	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/metrics"
 	"log"
 	"math/big"
 	"time"
+
+	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/metrics"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -94,7 +94,11 @@ func (w *Worker) CollectData(data []byte) {
 	if w.state != WORKING {
 		return
 	}
-	w.data = cryptograph.EncryptData(data, w.task.EncKey())
+	var err error
+	w.data, err = w.task.Encryptor().EncryptData(data)
+	if err != nil {
+		log.Fatalf("Worker collecting data error: %v\n", err)
+	}
 }
 
 // SubmitData uploads the collected data to the task it participated
