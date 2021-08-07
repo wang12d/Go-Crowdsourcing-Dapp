@@ -13,32 +13,31 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/client"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/smartcontract/cplatform"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/ethereum"
 )
 
 type platform struct {
-	workers         int      // The number of workers in the Plantform
-	requesters      int      // The number of requesters in the Plantform
-	keyIndex        int      // Key index used to get the private key
-	privateKeys     []string // All of private keys
-	privateKey      *ecdsa.PrivateKey
-	addressLock     chan struct{}       // The multithread lock of update index of platform
-	totalData       map[string][][]byte // The data needed by each task, their id as key
-	client          *ethclient.Client   // The client of whole ethereum network
-	address         common.Address
-	instance        *cplatform.Cplatform
-	chainID         *big.Int
-	opts            *bind.TransactOpts
-	instanceAddress common.Address
+	workers           int      // The number of workers in the Plantform
+	requesters        int      // The number of requesters in the Plantform
+	keyIndex          int      // Key index used to get the private key
+	privateKeys       []string // All of private keys of valid ganache blockchain address
+	privateKey        *ecdsa.PrivateKey
+	addressLock       chan struct{}               // The multithread lock of update index of platform
+	totalData         map[string][][]byte         // The data needed by each task, their id as key
+	address           common.Address              // The deployed adress of smart contract
+	taskParticipanted map[string][]common.Address // Tasks' address of a worker participanted
+	instance          *cplatform.Cplatform
+	chainID           *big.Int
+	opts              *bind.TransactOpts
+	instanceAddress   common.Address
 }
 
 const (
 	platformKeyIndex = 0
 	numberOfAccount  = 60
 	NULL             = ""
-	localURL         = "http://localhost:8545"
 )
 
 var (
@@ -49,10 +48,6 @@ var (
 func init() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	platformOnce.Do(func() {
-		client, err := ethclient.Dial(localURL)
-		if err != nil {
-			log.Fatalf("Create ethereum client error: %v\n", err)
-		}
 		// Parser accounts file
 		pwd, _ := os.Getwd()
 		accountFile := filepath.Join(pwd, "pkg", "crowdsourcing", "platform", "accounts.json")
@@ -83,16 +78,16 @@ func init() {
 
 		// Now deploying the platform contract with its private key
 		privateKey, address := ethereum.PrivateKeyAndAddress(privateKeys[platformKeyIndex])
-		chainID, err := client.ChainID(context.Background())
+		chainID, err := client.CLIENT.ChainID(context.Background())
 		if err != nil {
 			log.Fatalf("Get chain ID error: %v\n", err)
 		}
-		platformAuth := ethereum.KeyedTransactor(client, privateKey, address, chainID, big.NewInt(0))
-		platformAddress, _, platformInstance, err := cplatform.DeployCplatform(platformAuth, client)
+		platformAuth := ethereum.KeyedTransactor(client.CLIENT, privateKey, address, chainID, big.NewInt(0))
+		platformAddress, _, platformInstance, err := cplatform.DeployCplatform(platformAuth, client.CLIENT)
 		if err != nil {
 			log.Fatalf("Deploy platform error: %v\n", err)
 		}
-		ethereum.UpdateNonce(client, platformAuth, address)
+		ethereum.UpdateNonce(client.CLIENT, platformAuth, address)
 		CP = &platform{
 			addressLock:     make(chan struct{}, 1),
 			keyIndex:        1,
@@ -100,7 +95,6 @@ func init() {
 			requesters:      0,
 			privateKeys:     privateKeys,
 			totalData:       make(map[string][][]byte),
-			client:          client,
 			instanceAddress: platformAddress,
 			instance:        platformInstance,
 			chainID:         chainID,
@@ -129,11 +123,6 @@ func (cp *platform) NewAccount() (*ecdsa.PrivateKey, common.Address) {
 	return ethereum.PrivateKeyAndAddress(privateKey)
 }
 
-// Client returns the Ethereum client
-func (cp *platform) Client() *ethclient.Client {
-	return cp.client
-}
-
 // InstanceAddress returns the address of deployed platform
 func (cp *platform) InstanceAddress() common.Address {
 	return cp.instanceAddress
@@ -160,5 +149,5 @@ func (cp *platform) Register(address common.Address) {
 	if _, err := cp.instance.Register(cp.opts, address); err != nil {
 		log.Fatalf("Register to platform error: %v\n", err)
 	}
-	ethereum.UpdateNonce(cp.client, cp.opts, cp.address)
+	ethereum.UpdateNonce(client.CLIENT, cp.opts, cp.address)
 }

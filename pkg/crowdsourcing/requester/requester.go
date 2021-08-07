@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/client"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/cryptograph"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/metrics"
 
@@ -72,7 +73,7 @@ func (r *Requester) Register() {
 	r.privateKey, r.address = privateKey, address
 	r.publicKey = &privateKey.PublicKey
 	r.state = PENDING
-	r.opts = ethereum.KeyedTransactor(platform.CP.Client(), r.privateKey,
+	r.opts = ethereum.KeyedTransactor(client.CLIENT, r.privateKey,
 		r.address, platform.CP.ChainID(), big.NewInt(0))
 	platform.CP.Register(r.address)
 }
@@ -91,15 +92,15 @@ func (r *Requester) PostTask(workers, reward, reputation int, encKey cryptograph
 	collateral := new(big.Int)
 	collateral.Mul(_workers, _rewards)
 	// Now publishing the task to blockchain
-	taskAddress, _, taskContract, err := ctask.DeployCtask(r.opts, platform.CP.Client(), _workers, _rewards, _reputation, description)
+	taskAddress, _, taskContract, err := ctask.DeployCtask(r.opts, client.CLIENT, _workers, _rewards, _reputation, description)
 	if err != nil {
 		log.Fatalf("Publish task error: %v\n", err)
 	}
-	ethereum.UpdateNonce(platform.CP.Client(), r.opts, r.address)
-	if err := ethereum.DepositCollateral(platform.CP.Client(), r.privateKey, r.address, taskAddress, collateral, []byte{0x01}); err != nil {
+	ethereum.UpdateNonce(client.CLIENT, r.opts, r.address)
+	if err := ethereum.DepositCollateral(client.CLIENT, r.privateKey, r.address, taskAddress, collateral, []byte{0x01}); err != nil {
 		log.Fatalf("Requester deposite collaterals error: %v\n", err)
 	}
-	ethereum.UpdateNonce(platform.CP.Client(), r.opts, r.address)
+	ethereum.UpdateNonce(client.CLIENT, r.opts, r.address)
 	r.task = task.NewTask(big.NewInt(int64(workers)), big.NewInt(int64(reward)),
 		encKey, taskAddress, description, r.evaluation, taskContract)
 	r.state = WAITING
@@ -129,7 +130,7 @@ func (r *Requester) Rewarding(decryptor cryptograph.Decryptor) []bool {
 		if _, err := r.task.Instance().Rewarding(r.opts, r.task.WorkerAddresses()[i], isok, platform.CP.InstanceAddress()); err != nil {
 			log.Fatalf("Rewarding %v error: %v\n", i, err)
 		}
-		ethereum.UpdateNonce(platform.CP.Client(), r.opts, r.address)
+		ethereum.UpdateNonce(client.CLIENT, r.opts, r.address)
 	}
 	return rewardList
 }
