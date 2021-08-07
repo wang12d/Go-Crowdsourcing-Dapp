@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/client"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/platform"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/smartcontract/ctask"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/cryptograph"
@@ -129,7 +130,7 @@ func (t *Task) Participating(opts *bind.TransactOpts, workerAddress common.Addre
 	if _, err := t.instance.Register(opts, platform.CP.InstanceAddress()); err != nil {
 		log.Fatalf("Worker register crowdsourcing task error: %v\n", err)
 	}
-	ethereum.UpdateNonce(platform.CP.Client(), opts, workerAddress)
+	ethereum.UpdateNonce(client.CLIENT, opts, workerAddress)
 	t.workerAddresses[t.remainingWorkers.Int64()-1] = workerAddress
 	t.remainingWorkers.Sub(t.remainingWorkers, big.NewInt(1))
 	return true

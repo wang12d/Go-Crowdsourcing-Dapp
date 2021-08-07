@@ -10,6 +10,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/client"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/platform"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/task"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/ethereum"
@@ -62,7 +63,7 @@ func (w *Worker) Register() {
 	w.privateKey, w.address = privateKey, address
 	w.publicKey = &privateKey.PublicKey
 	w.state = PENDING
-	w.opts = ethereum.KeyedTransactor(platform.CP.Client(), w.privateKey,
+	w.opts = ethereum.KeyedTransactor(client.CLIENT, w.privateKey,
 		w.address, platform.CP.ChainID(), big.NewInt(0))
 	<-lock
 	platform.CP.Register(w.address)
