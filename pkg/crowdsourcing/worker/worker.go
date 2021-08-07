@@ -31,7 +31,7 @@ type Worker struct {
 	privateKey *ecdsa.PrivateKey
 	publicKey  *ecdsa.PublicKey
 	state      State
-	task       *task.Task
+	task       []*task.Task // A worker can participant multiple tasks
 	id         int
 	data       []byte
 	opts       *bind.TransactOpts
@@ -56,9 +56,9 @@ func (w *Worker) Register() {
 	caller := metrics.GetCallerName()
 	defer metrics.GetMemoryStatus(caller)
 	defer metrics.TimeCost(time.Now(), caller)
-	if w.state != INIT { // Only worker at INIT can register
-		return
-	}
+	// if w.state != INIT { // Only worker at INIT can register
+	// 	return
+	// }
 	privateKey, address := platform.CP.NewAccount()
 	w.privateKey, w.address = privateKey, address
 	w.publicKey = &privateKey.PublicKey
@@ -75,43 +75,41 @@ func (w *Worker) ParticipantTask(t *task.Task) {
 	caller := metrics.GetCallerName()
 	defer metrics.GetMemoryStatus(caller)
 	defer metrics.TimeCost(time.Now(), caller)
-	if w.state != PENDING {
-		return
-	}
-	t.TaskLock() //
+	// if w.state != PENDING {
+	// 	return
+	// }
+	t.TaskLock()
+	defer t.TaskRelease()
 	if t.RemainingWorkers().Cmp(zero) > 0 {
 		w.id = int(t.RemainingWorkers().Int64()) - 1
-		w.task = t
-		t.Participating(w.opts, w.address)
-		t.TaskRelease()
+		w.task = append(w.task, t)
+		platform.CP.WorkerParticipantTask(w.opts, t, w.address)
 		w.state = WORKING
-		return
 	}
-	t.TaskRelease()
 }
 
 // CollectData collects data from surrounding environment
-func (w *Worker) CollectData(data []byte) {
-	if w.state != WORKING {
-		return
-	}
+func (w *Worker) CollectData(taskID int, data []byte) {
+	// if w.state != WORKING {
+	// 	return
+	// }
 	var err error
-	w.data, err = w.task.Encryptor().EncryptData(data)
+	w.data, err = w.task[taskID].Encryptor().EncryptData(data)
 	if err != nil {
 		log.Fatalf("Worker collecting data error: %v\n", err)
 	}
 }
 
 // SubmitData uploads the collected data to the task it participated
-func (w *Worker) SubmitData() {
+func (w *Worker) SubmitData(taskID int) {
 	caller := metrics.GetCallerName()
 	defer metrics.GetMemoryStatus(caller)
 	defer metrics.TimeCost(time.Now(), caller)
 	if w.state != WORKING {
 		return
 	}
-	w.task.SubmitData(w.opts, w.id, w.data)
-	w.state = FIN
+	w.task[taskID].SubmitData(w.opts, w.id, w.data)
+	// w.state = FIN
 }
 
 // PublicKey returns the public key of the worker

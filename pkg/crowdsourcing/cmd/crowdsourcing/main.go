@@ -67,6 +67,7 @@ func main() {
 	lock.Wait()
 
 	r.PostTask(numberOfWorkers, rewards, 1, &pk, "Cluster")
+	fmt.Printf("task address: %v\n", r.Task().Address().Hex())
 	// Now finding the task
 	for i := 0; i < numberOfWorkers; i++ {
 		lock.Add(1)
@@ -88,8 +89,42 @@ func main() {
 		lock.Add(1)
 		go func(i int) {
 			defer lock.Done()
-			workers[i].CollectData(data[i])
-			workers[i].SubmitData()
+			workers[i].CollectData(0, data[i])
+			workers[i].SubmitData(0)
+		}(i)
+	}
+	lock.Wait()
+	// Verify the uploaded data
+	fmt.Println(r.Rewarding(&xsk))
+
+	// Verify workers can participant multiple tasks
+	r = requester.NewRequester()
+	r.Register()
+
+	r.PostTask(numberOfWorkers, rewards, 1, &pk, "Cluster")
+	fmt.Printf("task address: %v\n", r.Task().Address().Hex())
+	// Now finding the task
+	for i := 0; i < numberOfWorkers; i++ {
+		lock.Add(1)
+		go func(i int) {
+			defer lock.Done()
+			workers[i].ParticipantTask(r.Task())
+		}(i)
+	}
+	lock.Wait()
+	// Now collecting data
+	data = make([][]byte, numberOfWorkers)
+	for i := 0; i < numberOfWorkers; i++ {
+		numeric := mrand.Float64() * 1000.0
+		fmt.Printf("%v %v %v\n", workers[i].ID(), numeric, workers[i].Address())
+		data[i] = encoder.Float64ToBytes(numeric)
+	}
+	for i := 0; i < numberOfWorkers; i++ {
+		lock.Add(1)
+		go func(i int) {
+			defer lock.Done()
+			workers[i].CollectData(1, data[i])
+			workers[i].SubmitData(1)
 		}(i)
 	}
 	lock.Wait()

@@ -8,7 +8,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/client"
-	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/platform"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/smartcontract/ctask"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/cryptograph"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/ethereum"
@@ -122,15 +121,11 @@ func (t *Task) Instance() *ctask.Ctask {
 	return t.instance
 }
 
-// Participating indicates whether the participating of task success
-func (t *Task) Participating(opts *bind.TransactOpts, workerAddress common.Address) bool {
+// AddingWorkers adding workers to current task pool
+func (t *Task) AddingWorkers(workerAddress common.Address) bool {
 	if t.remainingWorkers.Cmp(big.NewInt(0)) <= 0 {
 		return false
 	}
-	if _, err := t.instance.Register(opts, platform.CP.InstanceAddress()); err != nil {
-		log.Fatalf("Worker register crowdsourcing task error: %v\n", err)
-	}
-	ethereum.UpdateNonce(client.CLIENT, opts, workerAddress)
 	t.workerAddresses[t.remainingWorkers.Int64()-1] = workerAddress
 	t.remainingWorkers.Sub(t.remainingWorkers, big.NewInt(1))
 	return true
@@ -154,6 +149,7 @@ func (t *Task) ID() string {
 func (t *Task) SubmitData(opts *bind.TransactOpts, workerID int, data []byte) {
 	t.data[workerID] = data
 	t.instance.SubmitData(opts, data)
+	ethereum.UpdateNonce(client.CLIENT, opts, t.workerAddresses[workerID])
 }
 
 // Data returns the data submitted from workers
