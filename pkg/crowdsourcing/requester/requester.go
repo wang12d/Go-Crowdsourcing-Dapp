@@ -3,6 +3,7 @@ package requester
 import (
 	"crypto/ecdsa"
 	"log"
+	"math"
 	"math/big"
 	"time"
 
@@ -55,6 +56,10 @@ func NewRequester() *Requester {
 func (r *Requester) evaluation(data []byte) float64 {
 	numeric := encoder.Float64FromBytes(data)
 	return numeric - mean
+}
+
+func (r *Requester) qualityThreshold(q float64) bool {
+	return q-3*sigma <= EPS && EPS <= 3*sigma+q
 }
 
 // Register register the worker into the Crowdsourcing platform
@@ -114,15 +119,39 @@ func (r *Requester) Rewarding(decryptor cryptograph.Decryptor, rewardingPolicy r
 	defer metrics.GetMemoryStatus(caller)
 	defer metrics.TimeCost(time.Now(), caller)
 	rewardList := make([]*big.Int, r.task.WorkerRequired().Int64())
+	qualityList := make([]float64, r.task.WorkerRequired().Int64())
 	data := r.task.Data()
+	var avgQuality float64 = 0.0
+	var qualityCnt uint64 = 0
 	for i, encData := range data {
 		rawData, err := decryptor.DecryptData(encData)
 		if err != nil {
 			log.Fatalf("Rewarding error when decrypting: %v\n", err)
 		}
-		rewards := rewardingPolicy.CalculateRewards(rawData, r.task, r.task.WorkerAddresses()[i])
-		rewardList[i] = rewards
-		if _, err := r.task.Instance().Rewarding(r.opts, r.task.WorkerAddresses()[i], rewards, platform.CP.InstanceAddress()); err != nil {
+		dataQuality := r.evaluation(rawData)
+		qualityList[i] = encoder.Float64FromBytes(rawData)
+		if !r.qualityThreshold(dataQuality) {
+			qualityList[i] = -1.0
+		} else {
+			avgQuality += qualityList[i]
+			qualityCnt += 1
+		}
+	}
+	maximumReward := big.NewInt(r.task.Reward().Int64())
+	if qualityCnt > 0 {
+		maximumReward.Div(maximumReward, big.NewInt(int64(qualityCnt)))
+	}
+	avgQuality = avgQuality / float64(qualityCnt)
+	for i := range data {
+		var realReward *big.Int
+		if qualityList[i] > 0 {
+			rewards := int64(math.Ceil(math.Min(qualityList[i]/avgQuality, avgQuality/qualityList[i]) * float64(maximumReward.Int64())))
+			realReward = rewardingPolicy.CalculateRewards(r.task, big.NewInt(rewards), r.task.WorkerAddresses()[i])
+		} else {
+			realReward = big.NewInt(0)
+		}
+		rewardList[i] = realReward
+		if _, err := r.task.Instance().Rewarding(r.opts, r.task.WorkerAddresses()[i], realReward, platform.CP.InstanceAddress()); err != nil {
 			log.Fatalf("Rewarding %v error: %v\n", i, err)
 		}
 		ethereum.UpdateNonce(client.CLIENT, r.opts, r.address)

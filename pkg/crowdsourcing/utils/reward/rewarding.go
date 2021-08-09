@@ -8,5 +8,5 @@ import (
 )
 
 type Policy interface {
-	CalculateRewards(data []byte, t *task.Task, workerAddress common.Address) *big.Int
+	CalculateRewards(t *task.Task, reward *big.Int, workerAddress common.Address) *big.Int
 }
