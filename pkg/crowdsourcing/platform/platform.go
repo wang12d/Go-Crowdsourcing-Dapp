@@ -25,11 +25,11 @@ type platform struct {
 	keyIndex                int      // Key index used to get the private key
 	privateKeys             []string // All of private keys of valid ganache blockchain address
 	privateKey              *ecdsa.PrivateKey
-	addressLock             chan struct{}               // The multithread lock of update index of platform
-	totalData               map[string][][]byte         // The data needed by each task, their id as key
-	address                 common.Address              // The deployed adress of smart contract
-	taskParticipanted       map[string][]common.Address // Tasks' address of a worker participanted
-	tasks                   []*task.Task                // The task platform received from requester
+	addressLock             chan struct{}           // The multithread lock of update index of platform
+	totalData               map[string][][]byte     // The data needed by each task, their id as key
+	address                 common.Address          // The deployed adress of smart contract
+	taskParticipanted       map[string][]*task.Task // The task a worker participanted
+	tasks                   []*task.Task            // The task platform received from requester
 	workerParticipationLock chan struct{}
 	instance                *cplatform.Cplatform
 	chainID                 *big.Int
@@ -98,7 +98,7 @@ func init() {
 			requesters:              0,
 			privateKeys:             privateKeys,
 			totalData:               make(map[string][][]byte),
-			taskParticipanted:       make(map[string][]common.Address),
+			taskParticipanted:       make(map[string][]*task.Task),
 			workerParticipationLock: make(chan struct{}, 1),
 			tasks:                   make([]*task.Task, 0),
 			instanceAddress:         platformAddress,
@@ -168,10 +168,16 @@ func (cp *platform) WorkerParticipantTask(opts *bind.TransactOpts, t *task.Task,
 	ethereum.UpdateNonce(client.CLIENT, opts, workerAddress)
 	t.AddingWorkers(workerAddress)
 	cp.workerParticipationLock <- struct{}{}
-	cp.taskParticipanted[t.Address().Hex()] = append(cp.taskParticipanted[t.Address().Hex()], workerAddress)
+	cp.taskParticipanted[workerAddress.Hex()] = append(cp.taskParticipanted[workerAddress.Hex()], t)
 	<-cp.workerParticipationLock
 }
 
+// AvailableTasks returns a list of task availabel in the paltform
 func (cp *platform) AvailableTasks() []*task.Task {
 	return cp.tasks
+}
+
+// TaskParticipanted returns tasks a worker participanted when given its address
+func (cp *platform) TaskParticipanted(worker common.Address) []*task.Task {
+	return cp.taskParticipanted[worker.Hex()]
 }
