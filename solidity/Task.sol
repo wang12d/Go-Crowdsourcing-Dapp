@@ -13,12 +13,13 @@ contract Task {
     // 对于一个任务，剩下的Workers数量
     uint _workerRequired;
     // 计算每个Worker应该获得的奖励
-    uint _rewards;
+    uint _totalRewards;
     address[] _workerAddresses;
     string _description;
     address _requester;
     uint _deposition;
     uint _remainingWorkers;
+    uint _finishedWorkers;
     bytes[] _data;
     uint256 _reputation;
      
@@ -37,9 +38,9 @@ contract Task {
     * Workers需要将押金从传递到智能合约的地址 
     * 后期为了进行权限控制，需要判断消息发送者是否真的为Workers
     */
-    constructor(uint workerRequired, uint rewards, uint256 reputation, string memory description) public  {
+    constructor(uint workerRequired, uint totalRewards, uint256 reputation, string memory description) public  {
         _workerRequired = workerRequired;
-        _rewards = rewards;
+        _totalRewards = totalRewards;
         _description = description;
         _requester = msg.sender;
         _remainingWorkers = workerRequired;
@@ -65,11 +66,11 @@ contract Task {
     function publish() public {
         // 对任务的信息进行记录，包括保存任务的押金，记录任务需要的人数
         require (_requester == msg.sender, "Not enough amount to pay the collaterals");
-        require (_rewards * _workerRequired <= _deposition, "The deposition must larger than rewards to workers to pubulish task.");
+        require (_totalRewards <= _deposition, "The deposition must larger than rewards to workers to pubulish task.");
         // 在requester使用自己的伪名进行任务发布以后，requester能够获得token的分发
         // 并且在workers完成任务的时候才能够获得token作为奖励
-        _rewards = _deposition / _workerRequired;   // 如果requester增加其押金
-        emit TaskPublished(_rewards, _requester, _description);
+        _totalRewards = _deposition;
+        emit TaskPublished(_totalRewards, _requester, _description);
     }
     // 给定一个地址，查看其所需要的Workers数量是否已满
     function remainingWorkers() public view returns (uint rem) {
@@ -114,21 +115,26 @@ contract Task {
     * 按照我们设计的协议，任务应该是由Workers直接提交到Requesters的，
     * 但是目前在这里作为测试用例，在智能合约上面实现该操作
     */
-    function Rewarding(address payable worker, bool isok, Platform p) public {
+    function Rewarding(address payable worker, uint rewards, Platform p) public {
         // 只有Requester才能调用此信息
         require(msg.sender == _requester, "Only requester can call this to workers who participants its task and has not been rewarded.");
-        if (isok) {
-            worker.transfer(_rewards);
+        require(_totalRewards >= rewards, "Not enough rewards to award.");
+        _finishedWorkers += 1;
+        if (rewards >= 0) {
+            worker.transfer(rewards);
             // 如果该worker任务完成很好，那么则授予一个token给他进行奖励
             // 于是它下次也可以参与任务
             p.increaseReputation(worker);
+            _totalRewards -= rewards;
         }
         else {
-            msg.sender.transfer(_rewards); // 退还押金
+            p.decreaseRepuation(worker);
             // 该worker并没有诚实的参与任务，需要销毁一个token
             // p.burnFrom(worker, 1);
         }
-        _deposition -= _rewards;
+        if (_finishedWorkers == _workerRequired && _totalRewards >= 0) {
+            msg.sender.transfer(_totalRewards);
+        }
     }
     // 辅助函数，用来进行从uint到string的转化，这一步主要是帮助Contracts进行任务的转化
     function uintToString(uint v) internal pure returns (string memory str) {
