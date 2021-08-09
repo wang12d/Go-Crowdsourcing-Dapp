@@ -100,6 +100,7 @@ func init() {
 			totalData:               make(map[string][][]byte),
 			taskParticipanted:       make(map[string][]common.Address),
 			workerParticipationLock: make(chan struct{}, 1),
+			tasks:                   make([]*task.Task, 0),
 			instanceAddress:         platformAddress,
 			instance:                platformInstance,
 			chainID:                 chainID,
@@ -169,4 +170,8 @@ func (cp *platform) WorkerParticipantTask(opts *bind.TransactOpts, t *task.Task,
 	cp.workerParticipationLock <- struct{}{}
 	cp.taskParticipanted[t.Address().Hex()] = append(cp.taskParticipanted[t.Address().Hex()], workerAddress)
 	<-cp.workerParticipationLock
+}
+
+func (cp *platform) AvailableTasks() []*task.Task {
+	return cp.tasks
 }
