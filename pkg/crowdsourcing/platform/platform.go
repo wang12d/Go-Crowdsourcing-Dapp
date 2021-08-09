@@ -162,7 +162,7 @@ func (cp *platform) Register(address common.Address) {
 
 // AddingTask adds the task to the platform for using
 func (cp *platform) WorkerParticipantTask(opts *bind.TransactOpts, t *task.Task, workerAddress common.Address) {
-	if _, err := t.Instance().Register(opts, cp.instanceAddress); err != nil {
+	if _, err := t.Instance().Register(opts); err != nil {
 		log.Fatalf("Worker register crowdsourcing task error: %v\n", err)
 	}
 	ethereum.UpdateNonce(client.CLIENT, opts, workerAddress)

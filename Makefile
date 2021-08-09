@@ -17,5 +17,5 @@ kill:
 
 clean: kill
 	rm -f $(shell pwd)/build/*
-	rm $(shell pwd)/pkg/crowdsourcing/platform/accounts.json
+	rm $(shell pwd)/accounts.json
 	rm -rf $(shell pwd)/pkg/crowdsourcing/smartcontract/task

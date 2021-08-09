@@ -80,7 +80,7 @@ func (r *Requester) Register() {
 }
 
 // PostTask create and post the task to platform
-func (r *Requester) PostTask(workers, reward, reputation int, encKey cryptograph.Encryptor, description string) {
+func (r *Requester) PostTask(workers, reward int, encKey cryptograph.Encryptor, description string) {
 	caller := metrics.GetCallerName()
 	defer metrics.GetMemoryStatus(caller)
 	defer metrics.TimeCost(time.Now(), caller)
@@ -88,17 +88,16 @@ func (r *Requester) PostTask(workers, reward, reputation int, encKey cryptograph
 	if r.state != PENDING {
 		return
 	}
-	_workers, _rewards, _reputation := big.NewInt(int64(workers)), big.NewInt(int64(reward)), big.NewInt(int64(reputation))
+	_workers, _rewards := big.NewInt(int64(workers)), big.NewInt(int64(reward))
 
-	collateral := new(big.Int)
-	collateral.Mul(_workers, _rewards)
+	collateral := big.NewInt(_rewards.Int64())
 	// Now publishing the task to blockchain
-	taskAddress, _, taskContract, err := ctask.DeployCtask(r.opts, client.CLIENT, _workers, _rewards, _reputation, description)
+	taskAddress, _, taskContract, err := ctask.DeployCtask(r.opts, client.CLIENT, _workers, _rewards, description)
 	if err != nil {
 		log.Fatalf("Publish task error: %v\n", err)
 	}
 	ethereum.UpdateNonce(client.CLIENT, r.opts, r.address)
-	if err := ethereum.DepositCollateral(client.CLIENT, r.privateKey, r.address, taskAddress, collateral, []byte{0x01}); err != nil {
+	if err := ethereum.DepositCollateral(client.CLIENT, r.privateKey, r.address, platform.CP.InstanceAddress(), collateral, []byte{0x01}); err != nil {
 		log.Fatalf("Requester deposite collaterals error: %v\n", err)
 	}
 	ethereum.UpdateNonce(client.CLIENT, r.opts, r.address)
@@ -151,7 +150,7 @@ func (r *Requester) Rewarding(decryptor cryptograph.Decryptor, rewardingPolicy r
 		}
 		realReward := rewardingPolicy.CalculateRewards(r.task, big.NewInt(reward), r.task.WorkerAddresses()[i])
 		rewardList[i] = realReward
-		if _, err := r.task.Instance().Rewarding(r.opts, r.task.WorkerAddresses()[i], realReward, platform.CP.InstanceAddress()); err != nil {
+		if _, err := platform.CP.Instance().Rewarding(r.opts, r.task.WorkerAddresses()[i], realReward, big.NewInt(reward), r.task.Address()); err != nil {
 			log.Fatalf("Rewarding %v error: %v\n", i, err)
 		}
 		ethereum.UpdateNonce(client.CLIENT, r.opts, r.address)

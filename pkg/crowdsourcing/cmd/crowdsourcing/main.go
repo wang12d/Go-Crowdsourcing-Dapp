@@ -76,7 +76,7 @@ func main() {
 	}
 	lock.Wait()
 
-	r.PostTask(numberOfWorkers, rewards, 1, &pk, "Cluster")
+	r.PostTask(numberOfWorkers, rewards, &pk, "Cluster")
 	fmt.Printf("task address: %v\n", r.Task().Address().Hex())
 	// Now finding the task
 	for i := 0; i < numberOfWorkers; i++ {
@@ -111,7 +111,7 @@ func main() {
 	r = requester.NewRequester()
 	r.Register()
 
-	r.PostTask(numberOfWorkers, rewards, 1, &pk, "Cluster")
+	r.PostTask(numberOfWorkers, rewards, &pk, "Cluster")
 	fmt.Printf("task address: %v\n", r.Task().Address().Hex())
 	// Now finding the task
 	for i := 0; i < numberOfWorkers; i++ {
