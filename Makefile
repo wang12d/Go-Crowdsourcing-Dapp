@@ -10,12 +10,10 @@ Platform.abi Platform.bin:
 	docker run --rm -v $(shell pwd):$(shell pwd) ethereum/solc:0.6.3 --overwrite @openzeppelin=$(shell pwd)/solidity/@openzeppelin -o $(shell pwd)/build --abi --bin $(shell pwd)/solidity/Platform.sol
 
 accounts.json:
-	touch $(shell pwd)/pkg/crowdsourcing/platform/accounts.json
+	touch $(shell pwd)/accounts.json
 
-kill:
-	pkill node
-
-clean: kill
+clean:
 	rm -f $(shell pwd)/build/*
 	rm $(shell pwd)/accounts.json
 	rm -rf $(shell pwd)/pkg/crowdsourcing/smartcontract/task
+	pkill node
