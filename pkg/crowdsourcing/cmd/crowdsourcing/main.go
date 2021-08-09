@@ -18,7 +18,7 @@ import (
 
 const (
 	numberOfWorkers = 5
-	rewards         = 5
+	rewards         = 500000000
 )
 
 type epk rsa.PublicKey
@@ -47,15 +47,8 @@ func (sk *esk) DecryptData(data []byte) ([]byte, error) {
 type PC struct {
 }
 
-func (cp *PC) CalculateRewards(data []byte, t *task.Task, workerAddress common.Address) *big.Int {
-	dataQuality := t.Eval()(data)
-	sigma, EPS := 250.0, 1e-8
-	if dataQuality-3*sigma <= EPS && dataQuality+3*sigma >= EPS {
-		tmp := big.NewInt(0)
-		return tmp.Div(t.Reward(), t.WorkerRequired())
-	} else {
-		return big.NewInt(0)
-	}
+func (cp *PC) CalculateRewards(t *task.Task, reward *big.Int, workerAddress common.Address) *big.Int {
+	return reward
 }
 
 func main() {
