@@ -8,6 +8,7 @@ import (
 
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/client"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/cryptograph"
+	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/reward"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/metrics"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -56,11 +57,6 @@ func (r *Requester) evaluation(data []byte) float64 {
 	return numeric - mean
 }
 
-// isReadable determines whether the current data quality is worth reward
-func (r *Requester) isReward(evalResult float64) bool {
-	return evalResult-3*sigma <= EPS && evalResult+3*sigma >= EPS
-}
-
 // Register register the worker into the Crowdsourcing platform
 func (r *Requester) Register() {
 	caller := metrics.GetCallerName()
@@ -104,6 +100,7 @@ func (r *Requester) PostTask(workers, reward, reputation int, encKey cryptograph
 	r.task = task.NewTask(big.NewInt(int64(workers)), big.NewInt(int64(reward)),
 		encKey, taskAddress, description, r.evaluation, taskContract)
 	r.state = WAITING
+	platform.CP.AddingTasks(r.task)
 }
 
 // Task returns the task of the requester
@@ -111,23 +108,21 @@ func (r *Requester) Task() *task.Task {
 	return r.task
 }
 
-// Rewarding returns a list which indicate whether the corresponding data
-// worth reward or not
-func (r *Requester) Rewarding(decryptor cryptograph.Decryptor) []bool {
+// Rewarding returns a list of rewards each worker will received
+func (r *Requester) Rewarding(decryptor cryptograph.Decryptor, rewardingPolicy reward.Policy) []*big.Int {
 	caller := metrics.GetCallerName()
 	defer metrics.GetMemoryStatus(caller)
 	defer metrics.TimeCost(time.Now(), caller)
-	rewardList := make([]bool, r.task.WorkerRequired().Int64())
+	rewardList := make([]*big.Int, r.task.WorkerRequired().Int64())
 	data := r.task.Data()
 	for i, encData := range data {
 		rawData, err := decryptor.DecryptData(encData)
 		if err != nil {
 			log.Fatalf("Rewarding error when decrypting: %v\n", err)
 		}
-		evalResult := r.task.Eval()(rawData)
-		isok := r.isReward(evalResult)
-		rewardList[i] = isok
-		if _, err := r.task.Instance().Rewarding(r.opts, r.task.WorkerAddresses()[i], isok, platform.CP.InstanceAddress()); err != nil {
+		rewards := rewardingPolicy.CalculateRewards(rawData, r.task, r.task.WorkerAddresses()[i])
+		rewardList[i] = rewards
+		if _, err := r.task.Instance().Rewarding(r.opts, r.task.WorkerAddresses()[i], rewards, platform.CP.InstanceAddress()); err != nil {
 			log.Fatalf("Rewarding %v error: %v\n", i, err)
 		}
 		ethereum.UpdateNonce(client.CLIENT, r.opts, r.address)

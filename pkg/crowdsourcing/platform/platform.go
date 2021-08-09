@@ -29,6 +29,7 @@ type platform struct {
 	totalData               map[string][][]byte         // The data needed by each task, their id as key
 	address                 common.Address              // The deployed adress of smart contract
 	taskParticipanted       map[string][]common.Address // Tasks' address of a worker participanted
+	tasks                   []*task.Task                // The task platform received from requester
 	workerParticipationLock chan struct{}
 	instance                *cplatform.Cplatform
 	chainID                 *big.Int
@@ -143,6 +144,11 @@ func (cp *platform) ChainID() *big.Int {
 
 func (cp *platform) Opts() *bind.TransactOpts {
 	return cp.opts
+}
+
+// AddingTasks adds task to the platform
+func (cp *platform) AddingTasks(t *task.Task) {
+	cp.tasks = append(cp.tasks, t)
 }
 
 // Register writes address to platform contract

@@ -5,17 +5,20 @@ import (
 	"crypto/rsa"
 	"crypto/sha512"
 	"fmt"
+	"math/big"
 	mrand "math/rand"
 	"sync"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/requester"
+	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/task"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/encoder"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/worker"
 )
 
 const (
 	numberOfWorkers = 5
-	rewards         = 1
+	rewards         = 5
 )
 
 type epk rsa.PublicKey
@@ -39,6 +42,20 @@ func (sk *esk) DecryptData(data []byte) ([]byte, error) {
 	hash := sha512.New()
 	ssk := rsa.PrivateKey(*sk)
 	return rsa.DecryptOAEP(hash, Dummy{}, &ssk, data, nil)
+}
+
+type PC struct {
+}
+
+func (cp *PC) CalculateRewards(data []byte, t *task.Task, workerAddress common.Address) *big.Int {
+	dataQuality := t.Eval()(data)
+	sigma, EPS := 250.0, 1e-8
+	if dataQuality-3*sigma <= EPS && dataQuality+3*sigma >= EPS {
+		tmp := big.NewInt(0)
+		return tmp.Div(t.Reward(), t.WorkerRequired())
+	} else {
+		return big.NewInt(0)
+	}
 }
 
 func main() {
@@ -95,7 +112,7 @@ func main() {
 	}
 	lock.Wait()
 	// Verify the uploaded data
-	fmt.Println(r.Rewarding(&xsk))
+	fmt.Println(r.Rewarding(&xsk, &PC{}))
 
 	// Verify workers can participant multiple tasks
 	r = requester.NewRequester()
@@ -129,5 +146,5 @@ func main() {
 	}
 	lock.Wait()
 	// Verify the uploaded data
-	fmt.Println(r.Rewarding(&xsk))
+	fmt.Println(r.Rewarding(&xsk, &PC{}))
 }

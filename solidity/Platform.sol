@@ -35,4 +35,8 @@ contract Platform {
     function increaseReputation(address _arr) public {
         _reputation[_arr] += 1;
     }
+
+    function decreaseRepuation(address _arr) public {
+        _reputation[_arr] += 1;
+    }
 }
