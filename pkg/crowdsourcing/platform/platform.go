@@ -15,23 +15,25 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/client"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/smartcontract/cplatform"
+	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/task"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/ethereum"
 )
 
 type platform struct {
-	workers           int      // The number of workers in the Plantform
-	requesters        int      // The number of requesters in the Plantform
-	keyIndex          int      // Key index used to get the private key
-	privateKeys       []string // All of private keys of valid ganache blockchain address
-	privateKey        *ecdsa.PrivateKey
-	addressLock       chan struct{}               // The multithread lock of update index of platform
-	totalData         map[string][][]byte         // The data needed by each task, their id as key
-	address           common.Address              // The deployed adress of smart contract
-	taskParticipanted map[string][]common.Address // Tasks' address of a worker participanted
-	instance          *cplatform.Cplatform
-	chainID           *big.Int
-	opts              *bind.TransactOpts
-	instanceAddress   common.Address
+	workers                 int      // The number of workers in the Plantform
+	requesters              int      // The number of requesters in the Plantform
+	keyIndex                int      // Key index used to get the private key
+	privateKeys             []string // All of private keys of valid ganache blockchain address
+	privateKey              *ecdsa.PrivateKey
+	addressLock             chan struct{}               // The multithread lock of update index of platform
+	totalData               map[string][][]byte         // The data needed by each task, their id as key
+	address                 common.Address              // The deployed adress of smart contract
+	taskParticipanted       map[string][]common.Address // Tasks' address of a worker participanted
+	workerParticipationLock chan struct{}
+	instance                *cplatform.Cplatform
+	chainID                 *big.Int
+	opts                    *bind.TransactOpts
+	instanceAddress         common.Address
 }
 
 const (
@@ -89,18 +91,20 @@ func init() {
 		}
 		ethereum.UpdateNonce(client.CLIENT, platformAuth, address)
 		CP = &platform{
-			addressLock:     make(chan struct{}, 1),
-			keyIndex:        1,
-			workers:         0,
-			requesters:      0,
-			privateKeys:     privateKeys,
-			totalData:       make(map[string][][]byte),
-			instanceAddress: platformAddress,
-			instance:        platformInstance,
-			chainID:         chainID,
-			opts:            platformAuth,
-			privateKey:      privateKey,
-			address:         address,
+			addressLock:             make(chan struct{}, 1),
+			keyIndex:                1,
+			workers:                 0,
+			requesters:              0,
+			privateKeys:             privateKeys,
+			totalData:               make(map[string][][]byte),
+			taskParticipanted:       make(map[string][]common.Address),
+			workerParticipationLock: make(chan struct{}, 1),
+			instanceAddress:         platformAddress,
+			instance:                platformInstance,
+			chainID:                 chainID,
+			opts:                    platformAuth,
+			privateKey:              privateKey,
+			address:                 address,
 		}
 		// Get the mutex lock
 		CP.addressLock <- struct{}{}
@@ -133,10 +137,6 @@ func (cp *platform) Instance() *cplatform.Cplatform {
 	return cp.instance
 }
 
-func (cp *platform) Address() common.Address {
-	return cp.address
-}
-
 func (cp *platform) ChainID() *big.Int {
 	return cp.chainID
 }
@@ -145,9 +145,22 @@ func (cp *platform) Opts() *bind.TransactOpts {
 	return cp.opts
 }
 
+// Register writes address to platform contract
 func (cp *platform) Register(address common.Address) {
 	if _, err := cp.instance.Register(cp.opts, address); err != nil {
 		log.Fatalf("Register to platform error: %v\n", err)
 	}
 	ethereum.UpdateNonce(client.CLIENT, cp.opts, cp.address)
+}
+
+// AddingTask adds the task to the platform for using
+func (cp *platform) WorkerParticipantTask(opts *bind.TransactOpts, t *task.Task, workerAddress common.Address) {
+	if _, err := t.Instance().Register(opts, cp.instanceAddress); err != nil {
+		log.Fatalf("Worker register crowdsourcing task error: %v\n", err)
+	}
+	ethereum.UpdateNonce(client.CLIENT, opts, workerAddress)
+	t.AddingWorkers(workerAddress)
+	cp.workerParticipationLock <- struct{}{}
+	cp.taskParticipanted[t.Address().Hex()] = append(cp.taskParticipanted[t.Address().Hex()], workerAddress)
+	<-cp.workerParticipationLock
 }
