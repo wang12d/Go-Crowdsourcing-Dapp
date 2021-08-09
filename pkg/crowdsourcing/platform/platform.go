@@ -53,7 +53,7 @@ func init() {
 	platformOnce.Do(func() {
 		// Parser accounts file
 		pwd, _ := os.Getwd()
-		accountFile := filepath.Join(pwd, "pkg", "crowdsourcing", "platform", "accounts.json")
+		accountFile := filepath.Join(pwd, "accounts.json")
 		accountFileHandler, err := os.Open(accountFile)
 		if err != nil {
 			log.Fatalf("Read account file error: %v\n", err)
