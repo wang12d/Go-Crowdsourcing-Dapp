@@ -53,7 +53,7 @@ func init() {
 	platformOnce.Do(func() {
 		// Parser accounts file
 		pwd, _ := os.Getwd()
-		accountFile := filepath.Join(pwd, "pkg", "crowdsourcing", "platform", "accounts.json")
+		accountFile := filepath.Join(pwd, "accounts.json")
 		accountFileHandler, err := os.Open(accountFile)
 		if err != nil {
 			log.Fatalf("Read account file error: %v\n", err)
@@ -162,7 +162,7 @@ func (cp *platform) Register(address common.Address) {
 
 // AddingTask adds the task to the platform for using
 func (cp *platform) WorkerParticipantTask(opts *bind.TransactOpts, t *task.Task, workerAddress common.Address) {
-	if _, err := t.Instance().Register(opts, cp.instanceAddress); err != nil {
+	if _, err := t.Instance().Register(opts); err != nil {
 		log.Fatalf("Worker register crowdsourcing task error: %v\n", err)
 	}
 	ethereum.UpdateNonce(client.CLIENT, opts, workerAddress)

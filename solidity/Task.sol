@@ -2,7 +2,7 @@
 pragma solidity >=0.6.0 <0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20Burnable.sol";
-import "./Platform.sol";
+// import "./Platform.sol";
 
 // @title 移动众包-智能合约
 // 主要负责处理Workers和Requesters之间的关系，它需要
@@ -21,7 +21,7 @@ contract Task {
     uint _remainingWorkers;
     uint _finishedWorkers;
     bytes[] _data;
-    uint256 _reputation;
+    // uint256 _reputation;
      
     // 负责在特定条件下用来进行交互的Event，进行交易的触发
     // 假若Requester完成了任务并进行了评估，那么它就会触发一个交易来
@@ -38,14 +38,14 @@ contract Task {
     * Workers需要将押金从传递到智能合约的地址 
     * 后期为了进行权限控制，需要判断消息发送者是否真的为Workers
     */
-    constructor(uint workerRequired, uint totalRewards, uint256 reputation, string memory description) public  {
+    constructor(uint workerRequired, uint totalRewards, string memory description) public  {
         _workerRequired = workerRequired;
         _totalRewards = totalRewards;
         _description = description;
         _requester = msg.sender;
         _remainingWorkers = workerRequired;
-        _deposition = 0;
-        _reputation = reputation;
+        _deposition = _totalRewards;
+        // _reputation = reputation;
     }
 
     receive() external payable {
@@ -80,9 +80,9 @@ contract Task {
     * 但是workers在注册时会被基于一个不记名的token，该token时一个
     * 参与的凭证
     */
-    function register(Platform p) public {
+    function register() public {
         require(_remainingWorkers > 0, "The task do not need workers anymore");
-        require(p.reputation(msg.sender) >= _reputation, "Not enough reputation to participant the task");
+        // require(p.reputation(msg.sender) >= _reputation, "Not enough reputation to participant the task");
         address worker = msg.sender;
         // require (balanceOf(worker) > 0, "Only worker with token can participant the task");
         // 此时任务算是被workers接受了
@@ -115,27 +115,52 @@ contract Task {
     * 按照我们设计的协议，任务应该是由Workers直接提交到Requesters的，
     * 但是目前在这里作为测试用例，在智能合约上面实现该操作
     */
-    function Rewarding(address payable worker, uint rewards, Platform p) public {
-        // 只有Requester才能调用此信息
-        require(msg.sender == _requester, "Only requester can call this to workers who participants its task and has not been rewarded.");
-        require(_totalRewards >= rewards, "Not enough rewards to award.");
+    // function Rewarding(address payable worker, uint rewards, Platform p) public {
+    //     // 只有Requester才能调用此信息
+    //     require(msg.sender == _requester, "Only requester can call this to workers who participants its task and has not been rewarded.");
+    //     require(_totalRewards >= rewards, "Not enough rewards to award.");
+    //     _finishedWorkers += 1;
+    //     if (rewards >= 0) {
+    //         worker.transfer(rewards);
+    //         // 如果该worker任务完成很好，那么则授予一个token给他进行奖励
+    //         // 于是它下次也可以参与任务
+    //         p.increaseReputation(worker);
+    //         _totalRewards -= rewards;
+    //     }
+    //     else {
+    //         p.decreaseRepuation(worker);
+    //         // 该worker并没有诚实的参与任务，需要销毁一个token
+    //         // p.burnFrom(worker, 1);
+    //     }
+    //     if (_finishedWorkers == _workerRequired && _totalRewards >= 0) {
+    //         msg.sender.transfer(_totalRewards);
+    //     }
+    // }
+
+    function addingFinishWorkers() public {
         _finishedWorkers += 1;
-        if (rewards >= 0) {
-            worker.transfer(rewards);
-            // 如果该worker任务完成很好，那么则授予一个token给他进行奖励
-            // 于是它下次也可以参与任务
-            p.increaseReputation(worker);
-            _totalRewards -= rewards;
-        }
-        else {
-            p.decreaseRepuation(worker);
-            // 该worker并没有诚实的参与任务，需要销毁一个token
-            // p.burnFrom(worker, 1);
-        }
-        if (_finishedWorkers == _workerRequired && _totalRewards >= 0) {
-            msg.sender.transfer(_totalRewards);
-        }
     }
+
+    function rewarding(uint rewards) public {
+        _totalRewards -= rewards;
+    }
+
+    function requester() public view returns (address payable r) {
+        r = payable(_requester);
+    }
+
+    function finishedWorkers() public view returns (uint) {
+        return _finishedWorkers;
+    }
+
+    function workerRequired() public view returns (uint) {
+        return _workerRequired;
+    }
+
+    function totalRewards() public view returns (uint) {
+        return _totalRewards;
+    }
+
     // 辅助函数，用来进行从uint到string的转化，这一步主要是帮助Contracts进行任务的转化
     function uintToString(uint v) internal pure returns (string memory str) {
         uint maxlength = 100;
