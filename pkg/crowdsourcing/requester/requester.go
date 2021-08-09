@@ -143,13 +143,13 @@ func (r *Requester) Rewarding(decryptor cryptograph.Decryptor, rewardingPolicy r
 	}
 	avgQuality = avgQuality / float64(qualityCnt)
 	for i := range data {
-		var realReward *big.Int
+		var reward int64
 		if qualityList[i] > 0 {
-			rewards := int64(math.Ceil(math.Min(qualityList[i]/avgQuality, avgQuality/qualityList[i]) * float64(maximumReward.Int64())))
-			realReward = rewardingPolicy.CalculateRewards(r.task, big.NewInt(rewards), r.task.WorkerAddresses()[i])
+			reward = int64(math.Ceil(math.Min(qualityList[i]/avgQuality, avgQuality/qualityList[i]) * float64(maximumReward.Int64())))
 		} else {
-			realReward = big.NewInt(0)
+			reward = 0
 		}
+		realReward := rewardingPolicy.CalculateRewards(r.task, big.NewInt(reward), r.task.WorkerAddresses()[i])
 		rewardList[i] = realReward
 		if _, err := r.task.Instance().Rewarding(r.opts, r.task.WorkerAddresses()[i], realReward, platform.CP.InstanceAddress()); err != nil {
 			log.Fatalf("Rewarding %v error: %v\n", i, err)
