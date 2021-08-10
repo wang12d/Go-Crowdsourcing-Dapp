@@ -76,7 +76,7 @@ func (r *Requester) Register() {
 	r.state = PENDING
 	r.opts = ethereum.KeyedTransactor(client.CLIENT, r.privateKey,
 		r.address, platform.CP.ChainID(), big.NewInt(0))
-	platform.CP.Register(r.address)
+	platform.CP.RegisterRequester(r.address)
 }
 
 // PostTask create and post the task to platform

@@ -52,7 +52,7 @@ func NewWorker() *Worker {
 }
 
 // Register register the worker into the Crowdsourcing platform
-func (w *Worker) Register() {
+func (w *Worker) Register(taskNeeded uint64) {
 	caller := metrics.GetCallerName()
 	defer metrics.GetMemoryStatus(caller)
 	defer metrics.TimeCost(time.Now(), caller)
@@ -66,7 +66,7 @@ func (w *Worker) Register() {
 	w.opts = ethereum.KeyedTransactor(client.CLIENT, w.privateKey,
 		w.address, platform.CP.ChainID(), big.NewInt(0))
 	<-lock
-	platform.CP.Register(w.address)
+	platform.CP.RegisterWorker(w.address, big.NewInt(int64(taskNeeded)))
 	lock <- struct{}{}
 }
 
