@@ -122,11 +122,14 @@ func (cp *platform) NewAccount() (*ecdsa.PrivateKey, common.Address) {
 		cp.addressLock <- struct{}{}
 	}()
 	if cp.keyIndex >= numberOfAccount {
-		return nil, common.Address{}
+		cp.keyIndex = 1
 	}
 	privateKey = cp.privateKeys[cp.keyIndex]
+	pk, address := ethereum.PrivateKeyAndAddress(privateKey)
+	// In case address reuse
+	cp.taskParticipanted[address.Hex()] = nil
 	cp.keyIndex++
-	return ethereum.PrivateKeyAndAddress(privateKey)
+	return pk, address
 }
 
 // InstanceAddress returns the address of deployed platform
@@ -152,9 +155,17 @@ func (cp *platform) AddingTasks(t *task.Task) {
 	cp.tasks = append(cp.tasks, t)
 }
 
-// Register writes address to platform contract
-func (cp *platform) Register(address common.Address) {
-	if _, err := cp.instance.Register(cp.opts, address); err != nil {
+// RegisterWorker writes address to platform contract
+func (cp *platform) RegisterWorker(address common.Address, taskNeeded *big.Int) {
+	if _, err := cp.instance.RegisterWorker(cp.opts, address, taskNeeded); err != nil {
+		log.Fatalf("Register to platform error: %v\n", err)
+	}
+	ethereum.UpdateNonce(client.CLIENT, cp.opts, cp.address)
+}
+
+// RegisterRequester writes address to platform contract
+func (cp *platform) RegisterRequester(address common.Address) {
+	if _, err := cp.instance.RegisterRequester(cp.opts, address); err != nil {
 		log.Fatalf("Register to platform error: %v\n", err)
 	}
 	ethereum.UpdateNonce(client.CLIENT, cp.opts, cp.address)

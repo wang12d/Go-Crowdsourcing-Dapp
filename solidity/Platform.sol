@@ -10,7 +10,13 @@ contract Platform {
 
     address _platform;
     mapping (address => uint256) _reputation;
+    mapping (address => uint256) _workerTaskRequired;
+    mapping (address => uint256) _taskFinished;
+    mapping (address => uint256) _workerAccumulateReward;
     uint _deposition;
+    uint maxm = (1 << 255) - 1;
+
+    event WorkerRewarded( address indexed worker, address indexed task, uint amount);
     /**
      * 平台进行管理
      */
@@ -27,12 +33,18 @@ contract Platform {
     fallback() external payable {
         _deposition += msg.value;
     }
+
+    function registerRequester(address node) public {
+        require(node != address(0x0), "invalid address");
+        _reputation[node] = 1;
+    }
     /**
      * 每个节点都需要向节点注册来获取相应的token
      */
-    function register(address node) public {
+    function registerWorker(address node, uint taskRequired) public {
         require(node != address(0x0), "cannot tranfer to zero address");
-        _reputation[node] += 1;
+        _reputation[node] = 1;
+        _workerTaskRequired[node] = taskRequired;
     }
 
     /**
@@ -44,23 +56,32 @@ contract Platform {
         // 只有Requester才能调用此信息
         address payable requester = t.requester();
         require(msg.sender == requester, "Only requester can call this to workers who participants its task and has not been rewarded.");
-        require(maskedRewards <= _deposition, "Not enough rewards to award.");
+        require(_taskFinished[worker] <= _workerTaskRequired[worker], "The worker alreadly finished its tasks");
         t.addingFinishWorkers();
-        if (maskedRewards >= 0) {
-            worker.transfer(maskedRewards);
+        _workerAccumulateReward[worker] = (_workerAccumulateReward[worker]+maskedRewards) % maxm;
+        _taskFinished[worker] += 1;
+        if (unmaskedRewards >= 0) {
             // 如果该worker任务完成很好，那么则授予一个token给他进行奖励
             // 于是它下次也可以参与任务
             increaseReputation(worker);
             t.rewarding(unmaskedRewards);
-            _deposition -= maskedRewards;
+            emit WorkerRewarded(worker, address(t), maskedRewards);
         }
         else {
             decreaseRepuation(worker);
             // 该worker并没有诚实的参与任务，需要销毁一个token
             // p.burnFrom(worker, 1);
         }
+        if (_taskFinished[worker] == _workerTaskRequired[worker]) {
+            require(_workerAccumulateReward[worker] <= _deposition, "Not enough rewards to award.");
+            _deposition -= _workerAccumulateReward[worker];
+            worker.transfer(_workerAccumulateReward[worker]);
+            _taskFinished[worker] = 0;
+            _workerAccumulateReward[worker] = 0;
+        }
         if (t.finishedWorkers() == t.workerRequired() && t.totalRewards() >= 0) {
             requester.transfer(t.totalRewards());
+            _deposition -= t.totalRewards();
         }
     }
 

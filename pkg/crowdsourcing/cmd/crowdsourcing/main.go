@@ -71,7 +71,7 @@ func main() {
 		lock.Add(1)
 		go func(i int) {
 			defer lock.Done()
-			workers[i].Register()
+			workers[i].Register(1)
 		}(i)
 	}
 	lock.Wait()
@@ -111,6 +111,20 @@ func main() {
 	r = requester.NewRequester()
 	r.Register()
 
+	workers = make([]*worker.Worker, numberOfWorkers)
+	for i := 0; i < numberOfWorkers; i++ {
+		workers[i] = worker.NewWorker()
+	}
+
+	for i := 0; i < numberOfWorkers; i++ {
+		lock.Add(1)
+		go func(i int) {
+			defer lock.Done()
+			workers[i].Register(1)
+		}(i)
+	}
+	lock.Wait()
+
 	r.PostTask(numberOfWorkers, rewards, &pk, "Cluster")
 	fmt.Printf("task address: %v\n", r.Task().Address().Hex())
 	// Now finding the task
@@ -133,8 +147,8 @@ func main() {
 		lock.Add(1)
 		go func(i int) {
 			defer lock.Done()
-			workers[i].CollectData(1, data[i])
-			workers[i].SubmitData(1)
+			workers[i].CollectData(0, data[i])
+			workers[i].SubmitData(0)
 		}(i)
 	}
 	lock.Wait()

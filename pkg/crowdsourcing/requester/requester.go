@@ -76,11 +76,11 @@ func (r *Requester) Register() {
 	r.state = PENDING
 	r.opts = ethereum.KeyedTransactor(client.CLIENT, r.privateKey,
 		r.address, platform.CP.ChainID(), big.NewInt(0))
-	platform.CP.Register(r.address)
+	platform.CP.RegisterRequester(r.address)
 }
 
 // PostTask create and post the task to platform
-func (r *Requester) PostTask(workers, reward int, encKey cryptograph.Encryptor, description string) {
+func (r *Requester) PostTask(workers int, reward int64, encKey cryptograph.Encryptor, description string) {
 	caller := metrics.GetCallerName()
 	defer metrics.GetMemoryStatus(caller)
 	defer metrics.TimeCost(time.Now(), caller)
