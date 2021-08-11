@@ -36,14 +36,14 @@ contract Platform {
 
     function registerRequester(address node) public {
         require(node != address(0x0), "invalid address");
-        _reputation[node] += 1;
+        _reputation[node] = 1;
     }
     /**
      * 每个节点都需要向节点注册来获取相应的token
      */
     function registerWorker(address node, uint taskRequired) public {
         require(node != address(0x0), "cannot tranfer to zero address");
-        _reputation[node] += 1;
+        _reputation[node] = 1;
         _workerTaskRequired[node] = taskRequired;
     }
 
@@ -76,6 +76,8 @@ contract Platform {
             require(_workerAccumulateReward[worker] <= _deposition, "Not enough rewards to award.");
             _deposition -= _workerAccumulateReward[worker];
             worker.transfer(_workerAccumulateReward[worker]);
+            _taskFinished[worker] = 0;
+            _workerAccumulateReward[worker] = 0;
         }
         if (t.finishedWorkers() == t.workerRequired() && t.totalRewards() >= 0) {
             requester.transfer(t.totalRewards());

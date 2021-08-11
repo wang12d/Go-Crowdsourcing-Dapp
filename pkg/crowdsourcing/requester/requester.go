@@ -80,7 +80,7 @@ func (r *Requester) Register() {
 }
 
 // PostTask create and post the task to platform
-func (r *Requester) PostTask(workers, reward int, encKey cryptograph.Encryptor, description string) {
+func (r *Requester) PostTask(workers int, reward int64, encKey cryptograph.Encryptor, description string) {
 	caller := metrics.GetCallerName()
 	defer metrics.GetMemoryStatus(caller)
 	defer metrics.TimeCost(time.Now(), caller)

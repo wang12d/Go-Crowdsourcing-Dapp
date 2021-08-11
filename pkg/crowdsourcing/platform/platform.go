@@ -122,11 +122,14 @@ func (cp *platform) NewAccount() (*ecdsa.PrivateKey, common.Address) {
 		cp.addressLock <- struct{}{}
 	}()
 	if cp.keyIndex >= numberOfAccount {
-		return nil, common.Address{}
+		cp.keyIndex = 1
 	}
 	privateKey = cp.privateKeys[cp.keyIndex]
+	pk, address := ethereum.PrivateKeyAndAddress(privateKey)
+	// In case address reuse
+	cp.taskParticipanted[address.Hex()] = nil
 	cp.keyIndex++
-	return ethereum.PrivateKeyAndAddress(privateKey)
+	return pk, address
 }
 
 // InstanceAddress returns the address of deployed platform
