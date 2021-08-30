@@ -14,7 +14,7 @@ contract Platform {
     mapping (address => uint256) _taskFinished;
     mapping (address => uint256) _workerAccumulateReward;
     uint _deposition;
-    uint maxm = (1 << 255) - 1;
+    uint maxm = (1 << 64) - 1;
 
     event WorkerRewarded( address indexed worker, address indexed task, uint amount);
     /**
