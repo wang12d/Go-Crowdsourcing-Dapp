@@ -4,10 +4,10 @@ go: Task.abi Task.bin Platform.abi Platform.bin accounts.json
 	(ganache-cli -m "enable laugh there club flower source fog attract giraffe trend light rival" -a 60 --account_keys_path=$(shell pwd)/accounts.json --verbose &)
 
 Task.abi Task.bin:
-	docker run --rm -v $(shell pwd):$(shell pwd) ethereum/solc:0.6.3 --overwrite @openzeppelin=$(shell pwd)/solidity/@openzeppelin -o $(shell pwd)/build --abi --bin $(shell pwd)/solidity/Task.sol # Get abi file
+	docker run --rm -v $(shell pwd):$(shell pwd) ethereum/solc:0.6.3 -o $(shell pwd)/build --abi --bin $(shell pwd)/solidity/framework/contracts/Task.sol # Get abi file
 
 Platform.abi Platform.bin:
-	docker run --rm -v $(shell pwd):$(shell pwd) ethereum/solc:0.6.3 --overwrite @openzeppelin=$(shell pwd)/solidity/@openzeppelin -o $(shell pwd)/build --abi --bin $(shell pwd)/solidity/Platform.sol
+	docker run --rm -v $(shell pwd):$(shell pwd) ethereum/solc:0.6.3 -o $(shell pwd)/build --abi --bin $(shell pwd)/solidity/framework/contracts/Platform.sol
 
 accounts.json:
 	touch $(shell pwd)/accounts.json
