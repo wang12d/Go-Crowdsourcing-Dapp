@@ -11,6 +11,8 @@ import (
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/cryptograph"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/reward"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/metrics"
+	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/zksnark"
+	"github.com/wang12d/GoMarlin/marlin"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -148,7 +150,7 @@ func (r *Requester) Rewarding(decryptor cryptograph.Decryptor, rewardingPolicy r
 		} else {
 			reward = 0
 		}
-		realReward := rewardingPolicy.CalculateRewards(r.task, big.NewInt(reward), r.task.WorkerAddresses()[i])
+		realReward := rewardingPolicy.CalculateRewards(r.task, big.NewInt(reward), i)
 		rewardList[i] = realReward
 		if _, err := platform.CP.Instance().Rewarding(r.opts, r.task.WorkerAddresses()[i], realReward, big.NewInt(reward), r.task.Address()); err != nil {
 			log.Fatalf("Rewarding %v error: %v\n", i, err)
@@ -156,4 +158,9 @@ func (r *Requester) Rewarding(decryptor cryptograph.Decryptor, rewardingPolicy r
 		ethereum.UpdateNonce(client.CLIENT, r.opts, r.address)
 	}
 	return rewardList
+}
+
+// GenerateZKProof generates the zk snark proof to protect the privacy of each inputs
+func (r *Requester) GeneateZKProof(gen zksnark.ZK_Gen) (marlin.Proof, marlin.VerifyKey) {
+	return gen.GenerateProofAndVerifyKey()
 }
