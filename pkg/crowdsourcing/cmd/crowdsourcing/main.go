@@ -9,7 +9,6 @@ import (
 	mrand "math/rand"
 	"sync"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/requester"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/task"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/encoder"
@@ -47,7 +46,7 @@ func (sk *esk) DecryptData(data []byte) ([]byte, error) {
 type PC struct {
 }
 
-func (cp *PC) CalculateRewards(t *task.Task, reward *big.Int, workerAddress common.Address) *big.Int {
+func (cp *PC) CalculateRewards(t *task.Task, reward *big.Int, workerID int) *big.Int {
 	return reward
 }
 
