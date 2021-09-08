@@ -1,2 +1,4 @@
 .idea/*
 .vscode/*
+solidity/framework/node_modules/*
+solidity/framework/.secret.json

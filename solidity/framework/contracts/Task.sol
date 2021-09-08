@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.6.0 <0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20Burnable.sol";
+// import "@openzeppelin/contracts/token/ERC20/ERC20Burnable.sol";
 // import "./Platform.sol";
 
 // @title 移动众包-智能合约
