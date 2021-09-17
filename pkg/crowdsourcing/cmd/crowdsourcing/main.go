@@ -1,9 +1,6 @@
 package main
 
 import (
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/sha512"
 	"fmt"
 	"math/big"
 	mrand "math/rand"
@@ -20,29 +17,6 @@ const (
 	rewards         = 500000000
 )
 
-type epk rsa.PublicKey
-type esk rsa.PrivateKey
-
-type Dummy struct {
-}
-
-func (d Dummy) Read(p []byte) (n int, err error) {
-	n = copy(p, make([]byte, len(p)))
-	return n, err
-}
-
-func (pk *epk) EncryptData(data []byte) ([]byte, error) {
-	hash := sha512.New()
-	ppk := rsa.PublicKey(*pk)
-	return rsa.EncryptOAEP(hash, Dummy{}, &ppk, data, nil)
-}
-
-func (sk *esk) DecryptData(data []byte) ([]byte, error) {
-	hash := sha512.New()
-	ssk := rsa.PrivateKey(*sk)
-	return rsa.DecryptOAEP(hash, Dummy{}, &ssk, data, nil)
-}
-
 type PC struct {
 }
 
@@ -55,9 +29,6 @@ func main() {
 	r := requester.NewRequester()
 	r.Register()
 
-	sk, _ := rsa.GenerateKey(rand.Reader, 2048)
-	pk := epk(sk.PublicKey)
-	xsk := esk(*sk)
 	// Create five workers
 	workers := make([]*worker.Worker, numberOfWorkers)
 	for i := 0; i < numberOfWorkers; i++ {
@@ -75,7 +46,7 @@ func main() {
 	}
 	lock.Wait()
 
-	r.PostTask(numberOfWorkers, rewards, &pk, "Cluster")
+	r.PostTask(numberOfWorkers, rewards, "Cluster")
 	fmt.Printf("task address: %v\n", r.Task().Address().Hex())
 	// Now finding the task
 	for i := 0; i < numberOfWorkers; i++ {
@@ -90,9 +61,9 @@ func main() {
 	// Now collecting data
 	data := make([][]byte, numberOfWorkers)
 	for i := 0; i < numberOfWorkers; i++ {
-		numeric := mrand.Float64() * 1000.0
+		numeric := mrand.Uint64() % 1000
 		fmt.Printf("%v %v %v\n", workers[i].ID(), numeric, workers[i].Address())
-		data[i] = encoder.Float64ToBytes(numeric)
+		data[i] = encoder.Uint64ToBytes(numeric)
 	}
 	for i := 0; i < numberOfWorkers; i++ {
 		lock.Add(1)
@@ -104,7 +75,7 @@ func main() {
 	}
 	lock.Wait()
 	// Verify the uploaded data
-	fmt.Println(r.Rewarding(&xsk, &PC{}))
+	fmt.Println(r.Rewarding(&PC{}))
 
 	// Verify workers can participant multiple tasks
 	r = requester.NewRequester()
@@ -124,7 +95,7 @@ func main() {
 	}
 	lock.Wait()
 
-	r.PostTask(numberOfWorkers, rewards, &pk, "Cluster")
+	r.PostTask(numberOfWorkers, rewards, "Cluster")
 	fmt.Printf("task address: %v\n", r.Task().Address().Hex())
 	// Now finding the task
 	for i := 0; i < numberOfWorkers; i++ {
@@ -138,9 +109,9 @@ func main() {
 	// Now collecting data
 	data = make([][]byte, numberOfWorkers)
 	for i := 0; i < numberOfWorkers; i++ {
-		numeric := mrand.Float64() * 1000.0
+		numeric := mrand.Uint64() % 1000
 		fmt.Printf("%v %v %v\n", workers[i].ID(), numeric, workers[i].Address())
-		data[i] = encoder.Float64ToBytes(numeric)
+		data[i] = encoder.Uint64ToBytes(numeric)
 	}
 	for i := 0; i < numberOfWorkers; i++ {
 		lock.Add(1)
@@ -152,5 +123,8 @@ func main() {
 	}
 	lock.Wait()
 	// Verify the uploaded data
-	fmt.Println(r.Rewarding(&xsk, &PC{}))
+	fmt.Println(r.Rewarding(&PC{}))
+
+	pk, vk := r.GeneateZKProof()
+	fmt.Printf("%v\t%v\n", len(pk), len(vk))
 }

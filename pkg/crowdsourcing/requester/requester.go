@@ -2,6 +2,8 @@ package requester
 
 import (
 	"crypto/ecdsa"
+	"crypto/rsa"
+	"crypto/sha512"
 	"log"
 	"math"
 	"math/big"
@@ -11,7 +13,6 @@ import (
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/cryptograph"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/utils/reward"
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/metrics"
-	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/zksnark"
 	"github.com/wang12d/GoMarlin/marlin"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -33,6 +34,37 @@ func init() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 }
 
+type requesterKeyPair struct {
+	esk *rsa.PrivateKey
+	epk *rsa.PublicKey
+}
+
+func newKeyPair() *requesterKeyPair {
+	esk, epk := cryptograph.GenerateRsaKeyPair()
+	return &requesterKeyPair{
+		esk: esk,
+		epk: epk,
+	}
+}
+
+func (rkp *requesterKeyPair) EncryptData(data []byte) ([]byte, error) {
+	hash := sha512.New()
+	return rsa.EncryptOAEP(hash, cryptograph.Dummy{}, rkp.epk, data, nil)
+}
+
+func (rkp *requesterKeyPair) DecryptData(data []byte) ([]byte, error) {
+	hash := sha512.New()
+	return rsa.DecryptOAEP(hash, cryptograph.Dummy{}, rkp.esk, data, nil)
+}
+
+func (rkp *requesterKeyPair) GetESK() *rsa.PrivateKey {
+	return rkp.esk
+}
+
+func (rkp *requesterKeyPair) GetEPK() *rsa.PublicKey {
+	return rkp.epk
+}
+
 type Requester struct {
 	address    common.Address
 	privateKey *ecdsa.PrivateKey
@@ -40,6 +72,9 @@ type Requester struct {
 	state      State
 	task       *task.Task
 	opts       *bind.TransactOpts
+	plainData  []uint // Plain data collected by crowdsourcing workers
+	kp         *requesterKeyPair
+	rawData    [][]byte // Raw data collected by crowdsourcing workers
 }
 
 // NewRequester returns a new requester
@@ -51,13 +86,16 @@ func NewRequester() *Requester {
 		state:      INIT,
 		task:       nil,
 		opts:       nil,
+		plainData:  make([]uint, 0),
+		kp:         newKeyPair(),
+		rawData:    make([][]byte, 0),
 	}
 }
 
 // evaluation is the data quality evaluation function
 func (r *Requester) evaluation(data []byte) float64 {
-	numeric := encoder.Float64FromBytes(data)
-	return numeric - mean
+	numeric := encoder.Uint64FromBytes(data)
+	return float64(numeric) - mean
 }
 
 func (r *Requester) qualityThreshold(q float64) bool {
@@ -82,7 +120,7 @@ func (r *Requester) Register() {
 }
 
 // PostTask create and post the task to platform
-func (r *Requester) PostTask(workers int, reward int64, encKey cryptograph.Encryptor, description string) {
+func (r *Requester) PostTask(workers int, reward int64, description string) {
 	caller := metrics.GetCallerName()
 	defer metrics.GetMemoryStatus(caller)
 	defer metrics.TimeCost(time.Now(), caller)
@@ -104,7 +142,7 @@ func (r *Requester) PostTask(workers int, reward int64, encKey cryptograph.Encry
 	}
 	ethereum.UpdateNonce(client.CLIENT, r.opts, r.address)
 	r.task = task.NewTask(big.NewInt(int64(workers)), big.NewInt(int64(reward)),
-		encKey, taskAddress, description, r.evaluation, taskContract)
+		r.kp, taskAddress, description, r.evaluation, taskContract)
 	r.state = WAITING
 	platform.CP.AddingTasks(r.task)
 }
@@ -115,26 +153,28 @@ func (r *Requester) Task() *task.Task {
 }
 
 // Rewarding returns a list of rewards each worker will received
-func (r *Requester) Rewarding(decryptor cryptograph.Decryptor, rewardingPolicy reward.Policy) []*big.Int {
+func (r *Requester) Rewarding(rewardingPolicy reward.Policy) []*big.Int {
 	caller := metrics.GetCallerName()
 	defer metrics.GetMemoryStatus(caller)
 	defer metrics.TimeCost(time.Now(), caller)
 	rewardList := make([]*big.Int, r.task.WorkerRequired().Int64())
-	qualityList := make([]float64, r.task.WorkerRequired().Int64())
+	qualityList := make([]uint64, r.task.WorkerRequired().Int64())
 	data := r.task.Data()
 	var avgQuality float64 = 0.0
 	var qualityCnt uint64 = 0
 	for i, encData := range data {
-		rawData, err := decryptor.DecryptData(encData)
+		rawData, err := r.kp.DecryptData(encData)
 		if err != nil {
 			log.Fatalf("Rewarding error when decrypting: %v\n", err)
 		}
+		r.rawData = append(r.rawData, rawData)
 		dataQuality := r.evaluation(rawData)
-		qualityList[i] = encoder.Float64FromBytes(rawData)
+		qualityList[i] = encoder.Uint64FromBytes(rawData)
+		r.plainData = append(r.plainData, uint(qualityList[i]))
 		if !r.qualityThreshold(dataQuality) {
-			qualityList[i] = -1.0
+			qualityList[i] = 0
 		} else {
-			avgQuality += qualityList[i]
+			avgQuality += float64(qualityList[i])
 			qualityCnt += 1
 		}
 	}
@@ -145,8 +185,8 @@ func (r *Requester) Rewarding(decryptor cryptograph.Decryptor, rewardingPolicy r
 	avgQuality = avgQuality / float64(qualityCnt)
 	for i := range data {
 		var reward int64
-		if qualityList[i] > 0 {
-			reward = int64(math.Ceil(math.Min(qualityList[i]/avgQuality, avgQuality/qualityList[i]) * float64(maximumReward.Int64())))
+		if qualityList[i] != 0 {
+			reward = int64(math.Ceil(math.Min(float64(qualityList[i])/avgQuality, avgQuality/float64(qualityList[i])) * float64(maximumReward.Int64())))
 		} else {
 			reward = 0
 		}
@@ -161,6 +201,13 @@ func (r *Requester) Rewarding(decryptor cryptograph.Decryptor, rewardingPolicy r
 }
 
 // GenerateZKProof generates the zk snark proof to protect the privacy of each inputs
-func (r *Requester) GeneateZKProof(gen zksnark.ZK_Gen) (marlin.Proof, marlin.VerifyKey) {
-	return gen.GenerateProofAndVerifyKey()
+func (r *Requester) GeneateZKProof() (marlin.Proof, marlin.VerifyKey) {
+	publicKeyPem, err := cryptograph.ExportRsaPublicKeyAsPem(r.kp.epk)
+	if err != nil {
+		log.Fatalf("Requester export public key error: %v\n", err)
+	}
+	return marlin.ZebraLancerGenerateProofAndVerifyKeyRewarding(uint(mean),
+		uint(sigma*sigma), r.plainData, publicKeyPem,
+		cryptograph.ExportRsaPrivateKeyAsPem(r.kp.esk), r.task.Data(), r.rawData,
+	)
 }
