@@ -16,8 +16,8 @@ func (d Dummy) Read(p []byte) (n int, err error) {
 	return n, err
 }
 
-func GenerateRsaKeyPair() (*rsa.PrivateKey, *rsa.PublicKey) {
-	privkey, _ := rsa.GenerateKey(rand.Reader, 2048)
+func GenerateRsaKeyPair(keySize int) (*rsa.PrivateKey, *rsa.PublicKey) {
+	privkey, _ := rsa.GenerateKey(rand.Reader, keySize)
 	return privkey, &privkey.PublicKey
 }
 

@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	mean  = 1000.0
+	mean  = 0.0
 	sigma = 250.0
 	EPS   = 1e-8
 )
@@ -39,8 +39,8 @@ type requesterKeyPair struct {
 	epk *rsa.PublicKey
 }
 
-func newKeyPair() *requesterKeyPair {
-	esk, epk := cryptograph.GenerateRsaKeyPair()
+func newKeyPair(dataSize int) *requesterKeyPair {
+	esk, epk := cryptograph.GenerateRsaKeyPair(dataSize)
 	return &requesterKeyPair{
 		esk: esk,
 		epk: epk,
@@ -78,7 +78,7 @@ type Requester struct {
 }
 
 // NewRequester returns a new requester
-func NewRequester() *Requester {
+func NewRequester(keySize int) *Requester {
 	return &Requester{
 		address:    common.Address{},
 		privateKey: nil,
@@ -87,7 +87,7 @@ func NewRequester() *Requester {
 		task:       nil,
 		opts:       nil,
 		plainData:  make([]uint, 0),
-		kp:         newKeyPair(),
+		kp:         newKeyPair(keySize),
 		rawData:    make([][]byte, 0),
 	}
 }
@@ -206,8 +206,8 @@ func (r *Requester) GeneateZKProof() (marlin.Proof, marlin.VerifyKey) {
 	if err != nil {
 		log.Fatalf("Requester export public key error: %v\n", err)
 	}
-	return marlin.ZebraLancerGenerateProofAndVerifyKeyRewarding(uint(mean),
-		uint(sigma*sigma), r.plainData, publicKeyPem,
-		cryptograph.ExportRsaPrivateKeyAsPem(r.kp.esk), r.task.Data(), r.rawData,
+	return marlin.GenerateEncryptionZKProofAndVerifyKey(uint(mean),
+		uint(sigma), r.plainData, publicKeyPem,
+		cryptograph.ExportRsaPrivateKeyAsPem(r.kp.esk), r.task.Data(), r.rawData, uint(r.kp.epk.N.BitLen()),
 	)
 }

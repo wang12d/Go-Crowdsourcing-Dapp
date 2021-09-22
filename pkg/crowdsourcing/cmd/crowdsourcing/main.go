@@ -26,7 +26,7 @@ func (cp *PC) CalculateRewards(t *task.Task, reward *big.Int, workerID int) *big
 
 func main() {
 	// Create a Task with 5 workers
-	r := requester.NewRequester()
+	r := requester.NewRequester(2048)
 	r.Register()
 
 	// Create five workers
@@ -78,7 +78,7 @@ func main() {
 	fmt.Println(r.Rewarding(&PC{}))
 
 	// Verify workers can participant multiple tasks
-	r = requester.NewRequester()
+	r = requester.NewRequester(2048)
 	r.Register()
 
 	workers = make([]*worker.Worker, numberOfWorkers)

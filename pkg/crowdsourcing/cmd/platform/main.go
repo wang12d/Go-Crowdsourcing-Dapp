@@ -1,19 +1,14 @@
 package main
 
 import (
-	"sync"
+	"fmt"
 
 	"github.com/wang12d/Go-Crowdsourcing-DApp/pkg/crowdsourcing/platform"
 )
 
 func main() {
-	var x sync.WaitGroup
-	for i := 0; i < 70; i++ {
-		x.Add(1)
-		go func() {
-			platform.CP.NewAccount()
-			defer x.Done()
-		}()
+	privateKeys := platform.CP.PrivateKeys()
+	for _, privateKey := range privateKeys {
+		fmt.Printf("%v\n", privateKey)
 	}
-	x.Wait()
 }
