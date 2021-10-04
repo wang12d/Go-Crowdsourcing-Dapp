@@ -2,18 +2,14 @@ package encoder
 
 import (
 	"encoding/binary"
-	"math"
 )
 
-func Float64FromBytes(bytes []byte) float64 {
-	bits := binary.LittleEndian.Uint64(bytes)
-	float := math.Float64frombits(bits)
-	return float
+func Uint64FromBytes(bytes []byte) uint64 {
+	return binary.LittleEndian.Uint64(bytes)
 }
 
-func Float64ToBytes(float float64) []byte {
-	bits := math.Float64bits(float)
+func Uint64ToBytes(intVal uint64) []byte {
 	bytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(bytes, bits)
+	binary.LittleEndian.PutUint64(bytes, intVal)
 	return bytes
 }

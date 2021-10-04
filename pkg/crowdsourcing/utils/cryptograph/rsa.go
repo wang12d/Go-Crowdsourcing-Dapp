@@ -16,12 +16,12 @@ func (d Dummy) Read(p []byte) (n int, err error) {
 	return n, err
 }
 
-func GenerateRsaKeyPair() (*rsa.PrivateKey, *rsa.PublicKey) {
-	privkey, _ := rsa.GenerateKey(rand.Reader, 2048)
+func GenerateRsaKeyPair(keySize int) (*rsa.PrivateKey, *rsa.PublicKey) {
+	privkey, _ := rsa.GenerateKey(rand.Reader, keySize)
 	return privkey, &privkey.PublicKey
 }
 
-func ExportRsaPrivateKeyAsPemStr(privkey *rsa.PrivateKey) string {
+func ExportRsaPrivateKeyAsPem(privkey *rsa.PrivateKey) []byte {
 	privkey_bytes := x509.MarshalPKCS1PrivateKey(privkey)
 	privkey_pem := pem.EncodeToMemory(
 		&pem.Block{
@@ -29,11 +29,11 @@ func ExportRsaPrivateKeyAsPemStr(privkey *rsa.PrivateKey) string {
 			Bytes: privkey_bytes,
 		},
 	)
-	return string(privkey_pem)
+	return privkey_pem
 }
 
-func ParseRsaPrivateKeyFromPemStr(privPEM string) (*rsa.PrivateKey, error) {
-	block, _ := pem.Decode([]byte(privPEM))
+func ParseRsaPrivateKeyFromPem(privPEM []byte) (*rsa.PrivateKey, error) {
+	block, _ := pem.Decode(privPEM)
 	if block == nil {
 		return nil, errors.New("failed to parse PEM block containing the key")
 	}
@@ -46,23 +46,23 @@ func ParseRsaPrivateKeyFromPemStr(privPEM string) (*rsa.PrivateKey, error) {
 	return priv, nil
 }
 
-func ExportRsaPublicKeyAsPemStr(pubkey *rsa.PublicKey) (string, error) {
+func ExportRsaPublicKeyAsPem(pubkey *rsa.PublicKey) ([]byte, error) {
 	pubkey_bytes, err := x509.MarshalPKIXPublicKey(pubkey)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	pubkey_pem := pem.EncodeToMemory(
 		&pem.Block{
-			Type:  "RSA PUBLIC KEY",
+			Type:  "PUBLIC KEY",
 			Bytes: pubkey_bytes,
 		},
 	)
 
-	return string(pubkey_pem), nil
+	return pubkey_pem, nil
 }
 
-func ParseRsaPublicKeyFromPemStr(pubPEM string) (*rsa.PublicKey, error) {
-	block, _ := pem.Decode([]byte(pubPEM))
+func ParseRsaPublicKeyFromPem(pubPEM []byte) (*rsa.PublicKey, error) {
+	block, _ := pem.Decode(pubPEM)
 	if block == nil {
 		return nil, errors.New("failed to parse PEM block containing the key")
 	}

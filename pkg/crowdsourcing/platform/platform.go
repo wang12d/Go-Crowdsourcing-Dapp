@@ -192,3 +192,7 @@ func (cp *platform) AvailableTasks() []*task.Task {
 func (cp *platform) TaskParticipanted(worker common.Address) []*task.Task {
 	return cp.taskParticipanted[worker.Hex()]
 }
+
+func (cp *platform) PrivateKeys() []string {
+	return cp.privateKeys
+}
