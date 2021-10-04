@@ -211,3 +211,8 @@ func (r *Requester) GeneateZKProof() (marlin.Proof, marlin.VerifyKey) {
 		cryptograph.ExportRsaPrivateKeyAsPem(r.kp.esk), r.task.Data(), r.rawData, uint(r.kp.epk.N.BitLen()),
 	)
 }
+
+// Address return the blockchain address of the requester
+func (r *Requester) Address() common.Address {
+	return r.address
+}
