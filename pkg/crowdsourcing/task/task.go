@@ -106,7 +106,7 @@ func (t *Task) TaskRelease() {
 	t.workerLock <- struct{}{}
 }
 
-// Address return the address of requester who posted the task
+// Address return the address of deployed contract
 func (t *Task) Address() common.Address {
 	return t.address
 }
