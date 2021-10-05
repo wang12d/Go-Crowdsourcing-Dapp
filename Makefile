@@ -7,7 +7,7 @@ go: Platform accounts.json
 #	docker run --rm -v $(shell pwd):$(shell pwd) ethereum/solc:0.6.3 -o $(shell pwd)/build --abi --bin $(shell pwd)/solidity/framework/contracts/Task.sol # Get abi file
 
 Platform:
-	docker run --rm -v $(shell pwd):$(shell pwd) ethereum/solc:0.6.3 -o $(shell pwd)/build --abi --bin $(shell pwd)/solidity/framework/contracts/Platform.sol
+	docker run --rm -v $(shell pwd):$(shell pwd) ethereum/solc:0.6.3 -o $(shell pwd)/build --overwrite --abi --bin $(shell pwd)/solidity/framework/contracts/Platform.sol
 
 accounts.json:
 	touch $(shell pwd)/accounts.json
