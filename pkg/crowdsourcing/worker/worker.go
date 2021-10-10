@@ -105,9 +105,9 @@ func (w *Worker) SubmitData(taskID int) {
 	caller := metrics.GetCallerName()
 	defer metrics.GetMemoryStatus(caller)
 	defer metrics.TimeCost(time.Now(), caller)
-	if w.state != WORKING {
-		return
-	}
+	// if w.state != WORKING {
+	// 	return
+	// }
 	w.task[taskID].SubmitData(w.opts, w.id, w.data)
 	// w.state = FIN
 }

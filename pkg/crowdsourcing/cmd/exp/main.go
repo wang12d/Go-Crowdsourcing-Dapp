@@ -38,17 +38,19 @@ func main() {
 	registerationTimeCost, taskPublicationTimeCost := make([]time.Duration, length), make([]time.Duration, length)
 	taskParticipationTimeCost, dataCollectionTimeCost := make([]time.Duration, length), make([]time.Duration, length)
 	rewardingTimeCost := make([]time.Duration, length)
-	onChainStorage := make([]int, length)
+	onChainStorage, communication := make([]int, length), make([]int, length)
 
 	sk, _ := rsa.GenerateKey(crand.Reader, byteSize)
 
 	var registerationCost, taskPublicationCost, taskParticipationCost, dataCollectionCost, rewardingCost time.Duration
 	var onChainBytes int
+	var communicationBytes int
 
 	var timeStart time.Time
 	for i := 0; i < int(numberOfIteration); i++ {
 		for n, workerRequired := range numberOfWorkers {
 			onChainBytes, registerationCost, taskPublicationCost, taskParticipationCost, dataCollectionCost, rewardingCost = 0, 0, 0, 0, 0, 0
+			communicationBytes = 0
 			r := requester.NewRequester(byteSize)
 			timeStart = time.Now()
 			r.Register()
@@ -104,18 +106,20 @@ func main() {
 
 			timeStart = time.Now()
 			r.Rewarding(&PC{})
-			rewardingCost = time.Since(timeStart)
+			rewardingCost += time.Since(timeStart)
 			rewardingTimeCost[n] += rewardingCost
 
+			communicationBytes += onChainBytes / workerRequired
 			onChainStorage[n] += onChainBytes
+			communication[n] += communicationBytes
 		}
 	}
 
 	for i := 0; i < length; i++ {
-		fmt.Printf("%v,%v,%v,%v,%v,%v\n", registerationTimeCost[i]/time.Duration(numberOfIteration),
+		fmt.Printf("%v,%v,%v,%v,%v,%v,%v\n", registerationTimeCost[i]/time.Duration(numberOfIteration),
 			taskPublicationTimeCost[i]/time.Duration(numberOfIteration), taskParticipationTimeCost[i]/time.Duration(numberOfIteration),
 			dataCollectionTimeCost[i]/time.Duration(numberOfIteration), rewardingTimeCost[i]/time.Duration(numberOfIteration),
-			float64(onChainStorage[i])/1024.0/float64(numberOfIteration),
+			float64(onChainStorage[i])/1024.0/float64(numberOfIteration), float64(communication[i])/float64(numberOfIteration)/1024.0,
 		)
 	}
 }
