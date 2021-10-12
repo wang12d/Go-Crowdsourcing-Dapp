@@ -194,7 +194,7 @@ func (r *Requester) Rewarding(rewardingPolicy reward.Policy) []*big.Int {
 		rewardList[i] = realReward
 		ethereum.UpdateNonce(client.CLIENT, r.opts, r.address)
 		if _, err := platform.CP.Instance().Rewarding(r.opts, r.task.WorkerAddresses()[i], realReward, big.NewInt(reward), r.task.Address()); err != nil {
-			log.Fatalf("Rewarding %v error: %v\n", i, err)
+			log.Fatalf("Rewarding %v: %v %v error: %v\n", len(data), i, realReward, err)
 		}
 	}
 	return rewardList

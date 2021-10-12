@@ -27,7 +27,7 @@ const (
 
 var (
 	numberOfWorkers = []int{
-		3, 5, 7, 9, 11,
+		10, 100, 500, 1000,
 	}
 )
 
