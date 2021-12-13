@@ -45,7 +45,7 @@ func NewWorker() *Worker {
 		publicKey:  nil,
 		state:      INIT,
 		id:         -1,
-		task:       nil,
+		task:       make([]*task.Task, 1),
 		data:       nil,
 		opts:       nil,
 	}
@@ -82,7 +82,7 @@ func (w *Worker) ParticipantTask(t *task.Task) {
 	defer t.TaskRelease()
 	if t.RemainingWorkers().Cmp(zero) > 0 {
 		w.id = int(t.RemainingWorkers().Int64()) - 1
-		w.task = append(w.task, t)
+		w.task[0] = t
 		platform.CP.WorkerParticipantTask(w.opts, t, w.address)
 		w.state = WORKING
 	}

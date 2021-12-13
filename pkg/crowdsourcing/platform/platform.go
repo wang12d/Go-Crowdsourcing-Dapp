@@ -39,7 +39,7 @@ type platform struct {
 
 const (
 	platformKeyIndex = 0
-	numberOfAccount  = 1010
+	numberOfAccount  = 2110
 	NULL             = ""
 )
 
