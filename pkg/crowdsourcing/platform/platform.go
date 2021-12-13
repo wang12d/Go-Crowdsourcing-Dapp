@@ -39,7 +39,7 @@ type platform struct {
 
 const (
 	platformKeyIndex = 0
-	numberOfAccount  = 60
+	numberOfAccount  = 2110
 	NULL             = ""
 )
 
@@ -86,11 +86,11 @@ func init() {
 			log.Fatalf("Get chain ID error: %v\n", err)
 		}
 		platformAuth := ethereum.KeyedTransactor(client.CLIENT, privateKey, address, chainID, big.NewInt(0))
+		ethereum.UpdateNonce(client.CLIENT, platformAuth, address)
 		platformAddress, _, platformInstance, err := cplatform.DeployCplatform(platformAuth, client.CLIENT)
 		if err != nil {
 			log.Fatalf("Deploy platform error: %v\n", err)
 		}
-		ethereum.UpdateNonce(client.CLIENT, platformAuth, address)
 		CP = &platform{
 			addressLock:             make(chan struct{}, 1),
 			keyIndex:                1,
@@ -157,26 +157,26 @@ func (cp *platform) AddingTasks(t *task.Task) {
 
 // RegisterWorker writes address to platform contract
 func (cp *platform) RegisterWorker(address common.Address, taskNeeded *big.Int) {
+	ethereum.UpdateNonce(client.CLIENT, cp.opts, cp.address)
 	if _, err := cp.instance.RegisterWorker(cp.opts, address, taskNeeded); err != nil {
 		log.Fatalf("Register to platform error: %v\n", err)
 	}
-	ethereum.UpdateNonce(client.CLIENT, cp.opts, cp.address)
 }
 
 // RegisterRequester writes address to platform contract
 func (cp *platform) RegisterRequester(address common.Address) {
+	ethereum.UpdateNonce(client.CLIENT, cp.opts, cp.address)
 	if _, err := cp.instance.RegisterRequester(cp.opts, address); err != nil {
 		log.Fatalf("Register to platform error: %v\n", err)
 	}
-	ethereum.UpdateNonce(client.CLIENT, cp.opts, cp.address)
 }
 
 // AddingTask adds the task to the platform for using
 func (cp *platform) WorkerParticipantTask(opts *bind.TransactOpts, t *task.Task, workerAddress common.Address) {
+	ethereum.UpdateNonce(client.CLIENT, opts, workerAddress)
 	if _, err := t.Instance().Register(opts); err != nil {
 		log.Fatalf("Worker register crowdsourcing task error: %v\n", err)
 	}
-	ethereum.UpdateNonce(client.CLIENT, opts, workerAddress)
 	t.AddingWorkers(workerAddress)
 	cp.workerParticipationLock <- struct{}{}
 	cp.taskParticipanted[workerAddress.Hex()] = append(cp.taskParticipanted[workerAddress.Hex()], t)

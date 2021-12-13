@@ -45,7 +45,7 @@ func NewWorker() *Worker {
 		publicKey:  nil,
 		state:      INIT,
 		id:         -1,
-		task:       nil,
+		task:       make([]*task.Task, 1),
 		data:       nil,
 		opts:       nil,
 	}
@@ -82,7 +82,7 @@ func (w *Worker) ParticipantTask(t *task.Task) {
 	defer t.TaskRelease()
 	if t.RemainingWorkers().Cmp(zero) > 0 {
 		w.id = int(t.RemainingWorkers().Int64()) - 1
-		w.task = append(w.task, t)
+		w.task[0] = t
 		platform.CP.WorkerParticipantTask(w.opts, t, w.address)
 		w.state = WORKING
 	}
@@ -105,9 +105,9 @@ func (w *Worker) SubmitData(taskID int) {
 	caller := metrics.GetCallerName()
 	defer metrics.GetMemoryStatus(caller)
 	defer metrics.TimeCost(time.Now(), caller)
-	if w.state != WORKING {
-		return
-	}
+	// if w.state != WORKING {
+	// 	return
+	// }
 	w.task[taskID].SubmitData(w.opts, w.id, w.data)
 	// w.state = FIN
 }
