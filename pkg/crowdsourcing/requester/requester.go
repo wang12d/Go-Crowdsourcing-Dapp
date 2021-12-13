@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	mean  = 0.0
+	mean  = 1000.0
 	sigma = 250.0
 	EPS   = 1e-8
 )
