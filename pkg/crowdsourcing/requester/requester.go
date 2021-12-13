@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	mean  = 0.0
+	mean  = .0
 	sigma = 250.0
 	EPS   = 1e-8
 )
@@ -132,6 +132,7 @@ func (r *Requester) PostTask(workers int, reward int64, description string) {
 
 	collateral := big.NewInt(_rewards.Int64())
 	// Now publishing the task to blockchain
+	ethereum.UpdateNonce(client.CLIENT, r.opts, r.address)
 	taskAddress, _, taskContract, err := ctask.DeployCtask(r.opts, client.CLIENT, _workers, _rewards, description)
 	if err != nil {
 		log.Fatalf("Publish task error: %v\n", err)
@@ -140,7 +141,6 @@ func (r *Requester) PostTask(workers int, reward int64, description string) {
 	if err := ethereum.DepositCollateral(client.CLIENT, r.privateKey, r.address, platform.CP.InstanceAddress(), collateral, []byte{0x01}); err != nil {
 		log.Fatalf("Requester deposite collaterals error: %v\n", err)
 	}
-	ethereum.UpdateNonce(client.CLIENT, r.opts, r.address)
 	r.task = task.NewTask(big.NewInt(int64(workers)), big.NewInt(int64(reward)),
 		r.kp, taskAddress, description, r.evaluation, taskContract)
 	r.state = WAITING
@@ -192,10 +192,10 @@ func (r *Requester) Rewarding(rewardingPolicy reward.Policy) []*big.Int {
 		}
 		realReward := rewardingPolicy.CalculateRewards(r.task, big.NewInt(reward), i)
 		rewardList[i] = realReward
-		if _, err := platform.CP.Instance().Rewarding(r.opts, r.task.WorkerAddresses()[i], realReward, big.NewInt(reward), r.task.Address()); err != nil {
-			log.Fatalf("Rewarding %v error: %v\n", i, err)
-		}
 		ethereum.UpdateNonce(client.CLIENT, r.opts, r.address)
+		if _, err := platform.CP.Instance().Rewarding(r.opts, r.task.WorkerAddresses()[i], realReward, big.NewInt(reward), r.task.Address()); err != nil {
+			log.Fatalf("Rewarding %v: %v %v error: %v\n", len(data), i, realReward, err)
+		}
 	}
 	return rewardList
 }

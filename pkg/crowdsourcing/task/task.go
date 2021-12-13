@@ -148,8 +148,8 @@ func (t *Task) ID() string {
 // SubmitData receives data submitted from worker
 func (t *Task) SubmitData(opts *bind.TransactOpts, workerID int, data []byte) {
 	t.data[workerID] = data
-	t.instance.SubmitData(opts, data)
 	ethereum.UpdateNonce(client.CLIENT, opts, t.workerAddresses[workerID])
+	t.instance.SubmitData(opts, data)
 }
 
 // Data returns the data submitted from workers
